@@ -35,19 +35,38 @@ function fold() {
 }
 
 function toggle_changeset(e) {
-  if ($(e.target).closest('a, .changeset').length)
+  if (isNotLeftButton(e) || $(e.target).closest('a, .changeset').length)
     return; // clicked a link, or in the changeset
   $('.changeset', this).toggle();
 }
 
+// every mouse click is not interesting; return true only on left mouse clicks
+function isNotLeftButton(e) {
+  // IE has e.which === null for left click && mouseover, FF has e.which === 1
+  return (e.which > 1) || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey;
+}
+
 function inline() {
+  // make file header click toggle showing file contents (except links @ right)
+  function toggle_file(e) {
+    if (isNotLeftButton(e) || $(e.target).closest('.actions').length)
+      return; // wrong kind of mouse click, or a right-side action link click
+    $(this).siblings('.data').toggle();
+  }
+
+  // diff links for this commit should refer to this commit only
   function fix_link() {
     var old = this.id;
     this.id += '-' + sha1;
     changeset.find('a[href="#'+ old +'"]')
              .attr('href', '#'+ this.id);
+    $('div.meta', this).click(toggle_file)
+                       .css('cursor', 'pointer')
+                       .attr('title', 'Toggle showing of file')
+      .find('.actions').attr('title', ' '); // but don't over-report that title
   }
 
+  // find all diff links and fix them, and annotate how many files were changed
   function fix_links() {
     var files = changeset.find('[id^="diff-"]').each(fix_link);
     var count = files.length;
