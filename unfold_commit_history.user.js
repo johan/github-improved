@@ -12,9 +12,10 @@ var css = // used for .toggleClass('folded'), for, optionally, hiding:
   '.commit.folded .changeset,\n' + // whole .commit:s' diffs,
   '.commit.folded .message .full' + // + full checkin message
   ' { display: none; }\n' +
-  '.commit.loading .actor .date:before\n' + // show a loading throbber
+  '.commit.loading .machine a[hotkey="c"]:before\n' + // show a loading throbber
   ' { content: url("/images/modules/browser/loading.gif"); }\n' +
-  '.commit.loading .actor .date abbr { visibility: hidden; }\n' +
+  '.commit.loading .machine a[hotkey="c"]\n' +
+  ' { position: absolute; margin: 2px 0 0 -70px; }\n' + // over "commit" message
   '.fold_unfold { float: right; }\n' +
   '.all_folded .fold_unfold:before { content: "\xAB un"; }\n' +
   '.all_folded .fold_unfold:after { content: " \xBB"; }\n' +
@@ -49,7 +50,7 @@ function init() {
   $('<a class="fold_unfold" hotkey="f">fold all changesets</a>')
     .appendTo('.pagination');
   $('.fold_unfold').toggle(unfold_all, fold_all);
-  window.toggle_all_folding = toggle_all_folding;
+  window.toggle_all_folding = toggle_all_folding; // export to public identifier
   $.hotkey('f', 'javascript:void(toggle_all_folding())');
 }
 
@@ -118,16 +119,16 @@ function inline_changeset() {
     commit.attr('title', 'Touched '+ count +' file'+ (count == 1 ? '' : 's'));
 
     // now, add lines 2.. of the commit message to the unfolded changeset view
-      try {
-    var whole = $('#commit', changeset), // contains the whole commit message
-        line2 = $('.message pre', whole).html().replace(line1, ''),
-        $span = $('<span class="full"></span>').html(line2);
+    var whole = $('#commit', changeset); // contains the whole commit message
+    try {
+      var line2 = $('.message pre', whole).html().replace(line1, ''),
+          $span = line2 && $('<span class="full"></span>').html(line2);
+      if (line2)
+        $('.human .message pre', commit).append($span); // commit message <pre>
+    } catch(e) {} // if this fails, fail silent -- no biggie
     whole.remove(); // and remove the remaining duplicate parts of that commit
-    $('.human .message pre', commit).append($span); // <pre> of commit message
-    commit.removeClass('loading');
-      }catch(e){
-          console.warn('error?', e);
-      }
+
+    commit.removeClass('loading'); // remove throbber
   }
 
   var line1  = /^[^\n]*/,
