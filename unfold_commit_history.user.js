@@ -6,16 +6,18 @@
 // @include       http://github.com/*/commits*
 // ==/UserScript==
 
-var css = // used for .toggleClass('folded'), for, optionally, hiding:
+var url = "/images/modules/browser/loading.gif",
+    _at = '.commit.loading .machine a[hotkey="c"]',
+    css = // used for .toggleClass('folded'), for, optionally, hiding:
   '.file.folded > .data,\n' + // individual .commit .changeset .file:s
   '.file.folded > .image,\n' + // (...or their corresponding .image:s)
   '.commit.folded .changeset,\n' + // whole .commit:s' diffs,
   '.commit.folded .message .full' + // + full checkin message
   ' { display: none; }\n' +
-  '.commit.loading .machine a[hotkey="c"]:before\n' + // show a loading throbber
-  ' { content: url("/images/modules/browser/loading.gif"); }\n' +
-  '.commit.loading .machine a[hotkey="c"]\n' +
-  ' { position: absolute; margin: 2px 0 0 -70px; }\n' + // over "commit" message
+  _at +':before\n { content: url("'+ url +'"); }\n'+  // show "loading" throbber
+  _at +'\n { position: absolute; margin: 1px 0 0 -70px;' +
+  ' height: 14px; background: #EAF2F5; }\n' +
+  '#commit .machine { padding-left: 14px; }\n' + // over "commit" message
   '.fold_unfold { float: right; }\n' +
   '.all_folded .fold_unfold:before { content: "\xAB un"; }\n' +
   '.all_folded .fold_unfold:after { content: " \xBB"; }\n' +
@@ -41,7 +43,8 @@ var css = // used for .toggleClass('folded'), for, optionally, hiding:
 })(init);
 
 function init() {
-  $('body').addClass('all_folded');
+  $('body').addClass('all_folded') // preload the loading throbber, so it shows
+    .append('<img src="'+ url +'" style="visibility:hidden;">'); // up promptly
   $('head').append($('<style type="text/css"></style>').html(css));
   $('.commit').live('click', toggle_commit_folding);
 
