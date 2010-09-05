@@ -63,7 +63,9 @@ function init() {
   $('<a class="fold_unfold" hotkey="f">fold all changesets</a>')
     .appendTo('.pagination');
   $('.fold_unfold').toggle(unfold_all, fold_all);
+  window.download_all = download_all; // export to public identifier
   window.toggle_all_folding = toggle_all_folding; // export to public identifier
+  $.hotkey('d', 'javascript:void(download_all())');
   $.hotkey('f', 'javascript:void(toggle_all_folding())');
 }
 
@@ -74,10 +76,14 @@ function toggle_all_folding() {
     fold_all();
 }
 
+function download_all() {
+  $('.envelope.commit .message a:not(.loaded)').each(inline_changeset);
+}
+
 function unfold_all() {
   $('body').addClass('all_unfolded').removeClass('all_folded');
   $('.commit.folded').removeClass('folded');
-  $('.envelope.commit .message a:not(.loaded)').each(inline_changeset);
+  $('.envelope.commit .message a:not(.loaded)').each(inline_and_unfold);
 }
 
 function fold_all() {
@@ -106,9 +112,14 @@ function pluralize(noun, n) {
   return n +' '+ noun + (n == 1 ? '' : 's');
 }
 
+function inline_and_unfold() {
+  var self = this;
+  inline_changeset.call(self, function() { $(self).toggleClass('folded'); });
+}
+
 // loads the changeset link's full commit message, toc and the files changed and
 // inlines them in the corresponding changeset (in the current page)
-function inline_changeset() {
+function inline_changeset(doneCallback) {
   // make file header click toggle showing file contents (except links @ right)
   function toggle_file(e) {
     if (isNotLeftButton(e) || $(e.target).closest('.actions').length)
@@ -180,11 +191,12 @@ function inline_changeset() {
     whole.remove(); // and remove the remaining duplicate parts of that commit
 
     commit.removeClass('loading'); // remove throbber
+    if ('function' === typeof doneCallback) doneCallback();
   }
 
   var line1  = /^[^\n]*/,
       sha1   = this.pathname.slice(this.pathname.lastIndexOf('/') + 1),
-      commit = $(this).closest('.commit').addClass('loading');
+      commit = $(this).closest('.commit').addClass('loading folded');
   $(this).addClass('loaded'); // mark that we already did load it on this page
   commit.find('.human, .machine')
     .css('cursor', 'pointer');
