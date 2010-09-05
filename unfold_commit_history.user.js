@@ -133,12 +133,11 @@ function inline_changeset() {
       if (x > (1e9 - 5e7 - 1)) return Math.round(x / 1e9) +'G';
       if (x > (1e6 - 5e4 - 1)) return Math.round(x / 1e6) +'M';
       if (x > (1e3 - 5e1 - 1)) return Math.round(x / 1e3) +'k';
-      if (x > (100 -   0 - 1)) return Math.round(x / 100) +'h';
       return x + '';
     }
     var $m = $('.machine', commit), alreadyChanged = $m.find('#toc').length;
     if (alreadyChanged) return;
-    var F = 0, A = 0, D = 0, $a = $m.append('<div class="change">change</div>' +
+    var F = 0, A = 0, D = 0, $a = $m.append('<span>c</span>hange'+
     '<table id="toc"><tr><td class="diffstat"><a class="tooltipped leftwards">'+
     '</a></td></tr></table>').find('#toc a');
 
