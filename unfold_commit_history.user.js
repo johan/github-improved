@@ -6,23 +6,31 @@
 // @include       http://github.com/*/commits*
 // ==/UserScript==
 
-var url = "/images/modules/browser/loading.gif",
-    _at = '.commit.loading .machine a[hotkey="c"]',
+var options =
+  { changed: true // Shows files changed, lines added / removed in folded mode
+  }, at = '.commit.loading .machine a[hotkey="c"]',
+    url = '/images/modules/browser/loading.gif',
     css = // used for .toggleClass('folded'), for, optionally, hiding:
   '.file.folded > .data,\n' + // individual .commit .changeset .file:s
   '.file.folded > .image,\n' + // (...or their corresponding .image:s)
   '.commit.folded .changeset,\n' + // whole .commit:s' diffs,
   '.commit.folded .message .full' + // + full checkin message
   ' { display: none; }\n' +
-  _at +':before\n { content: url("'+ url +'"); }\n'+  // show "loading" throbber
-  _at +'\n { position: absolute; margin: 1px 0 0 -70px;' +
+  at +':before\n { content: url("'+ url +'"); }\n'+  // show "loading" throbber
+  at +'\n { position: absolute; margin: 1px 0 0 -70px;' +
   ' height: 14px; background: #EAF2F5; }\n' +
   '#commit .machine { padding-left: 14px; }\n' + // over "commit" message
   '.fold_unfold { float: right; }\n' +
   '.all_folded .fold_unfold:before { content: "\xAB un"; }\n' +
   '.all_folded .fold_unfold:after { content: " \xBB"; }\n' +
   '.all_unfolded .fold_unfold:before { content: "\xBB "; }\n' +
-  '.all_unfolded .fold_unfold:after { content: " \xAB"; }\n';
+  '.all_unfolded .fold_unfold:after { content: " \xAB"; }\n' +
+  (!options.changed ? '' :
+   '#commit .folded .machine { padding-top: 6px; margin-bottom: -12px; }\n' +
+   '#commit .machine #toc .diffstat { border: 0; padding: 2px 0 0; }\n' +
+   '#commit .machine #toc .diffstat-summary { font-weight: normal; }\n' +
+   '#commit .machine #toc { float: right; width: 1px; margin: 0; border: 0; }');
+
 
 // This block of code injects our source in the content scope and then calls the
 // passed callback there. The whole script runs in both GM and page content, but
@@ -76,7 +84,7 @@ function fold_all() {
 }
 
 function toggle_commit_folding(e) {
-  if (isNotLeftButton(e) || $(e.target).closest('a, .changeset').length)
+  if (isNotLeftButton(e) || $(e.target).closest('a[href], .changeset').length)
     return; // clicked a link, or in the changeset; don't do fold action
 
   var $link = $('.message a', this);
@@ -90,6 +98,10 @@ function toggle_commit_folding(e) {
 function isNotLeftButton(e) {
   // IE has e.which === null for left click && mouseover, FF has e.which === 1
   return (e.which > 1) || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey;
+}
+
+function pluralize(noun, n) {
+  return n +' '+ noun + (n == 1 ? '' : 's');
 }
 
 // loads the changeset link's full commit message, toc and the files changed and
@@ -114,12 +126,40 @@ function inline_changeset() {
       .find('.actions').attr('title', ' '); // but don't over-report that title
   }
 
+  function show_changed() {
+    var $m = $('.machine', commit), alreadyChanged = $m.find('#toc').length;
+    if (alreadyChanged) return;
+    var files = 0, A = 0, D = 0, $a = $m.append('<span>c</span>hanges ' +
+    '<table id="toc"><tr><td class="diffstat"><a class="tooltipped leftwards">'+
+    '</a></td></tr></table>').find('#toc a');
+
+    // count added / removed lines and number of files changed
+    $('.changeset #toc .diffstat a[title]', commit).each(function count() {
+      ++files;
+      var lines = /(\d+) additions? & (\d+) deletion/.exec(this.title || '');
+      if (lines) {
+        A += Number(lines[1]);
+        D += Number(lines[2]);
+      }
+    });
+
+    var text = '<b>+'+ A +'</b> / <b>-'+ D +'</b> in <b>'+ files +'</b>',
+        stat = '<span class="diffstat-summary">'+ text +'</span>\n', i, N = 5,
+        plus = Math.round(A / (A + D) * N), bar = '<span class="diffstat-bar">';
+    for (i = 0; i < N; i++)
+      bar += '<span class="'+ (i < plus ? 'plus' : 'minus') +'">\u2022</span>';
+    bar += '</span>';
+
+    $a.html(stat + bar).attr('title', A +' additions & '+ D +' deletions in '+
+                             pluralize('file', files));
+  }
+
   // find all diff links and fix them, annotate how many files were changed, and
   // insert line 2.. of the commit message in the unfolded view of the changeset
   function post_process() {
-    var files = changeset.find('[id^="diff-"]').each(fix_link),
-        count = files.length;
-    commit.attr('title', 'Touched '+ count +' file'+ (count == 1 ? '' : 's'));
+    var files = changeset.find('[id^="diff-"]').each(fix_link);
+
+    if (options.changed) show_changed();
 
     // now, add lines 2.. of the commit message to the unfolded changeset view
     var whole = $('#commit', changeset); // contains the whole commit message
