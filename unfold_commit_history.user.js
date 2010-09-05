@@ -128,23 +128,30 @@ function inline_changeset() {
   }
 
   function show_changed() {
+    function n(x) {
+      if (x > (1e9 - 5e7 - 1)) return Math.round(x / 1e9) +'G';
+      if (x > (1e6 - 5e4 - 1)) return Math.round(x / 1e6) +'M';
+      if (x > (1e3 - 5e1 - 1)) return Math.round(x / 1e3) +'k';
+      if (x > (100 -   0 - 1)) return Math.round(x / 100) +'h';
+      return x + '';
+    }
     var $m = $('.machine', commit), alreadyChanged = $m.find('#toc').length;
     if (alreadyChanged) return;
-    var files = 0, A = 0, D = 0, $a = $m.append('<span>c</span>hanges ' +
+    var F = 0, A = 0, D = 0, $a = $m.append('<div class="change">change</div>' +
     '<table id="toc"><tr><td class="diffstat"><a class="tooltipped leftwards">'+
     '</a></td></tr></table>').find('#toc a');
 
     // count added / removed lines and number of files changed
     $('.changeset #toc .diffstat a[title]', commit).each(function count() {
-      ++files;
+      ++F; // files touched
       var lines = /(\d+) additions? & (\d+) deletion/.exec(this.title || '');
       if (lines) {
-        A += Number(lines[1]);
-        D += Number(lines[2]);
+        A += Number(lines[1]); // lines added
+        D += Number(lines[2]); // lines deleted
       }
     });
 
-    var text = '<b>+'+ A +'</b> / <b>-'+ D +'</b> in <b>'+ files +'</b>',
+    var text = '<b>+'+ n(A) +'</b> / <b>-'+ n(D) +'</b> in <b>'+ n(F) +'</b>',
         stat = '<span class="diffstat-summary">'+ text +'</span>\n', i, N = 5,
         plus = Math.round(A / (A + D) * N), bar = '<span class="diffstat-bar">';
     for (i = 0; i < N; i++)
@@ -152,7 +159,7 @@ function inline_changeset() {
     bar += '</span>';
 
     $a.html(stat + bar).attr('title', A +' additions & '+ D +' deletions in '+
-                             pluralize('file', files));
+                             pluralize('file', F));
   }
 
   // find all diff links and fix them, annotate how many files were changed, and
