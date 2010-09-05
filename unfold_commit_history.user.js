@@ -25,6 +25,7 @@ var options =
   '.all_folded .fold_unfold:after { content: " \xBB"; }\n' +
   '.all_unfolded .fold_unfold:before { content: "\xBB "; }\n' +
   '.all_unfolded .fold_unfold:after { content: " \xAB"; }\n' +
+  '#commit .human .message pre { width: auto; }\n' + // don't wrap before EOL!
   (!options.changed ? '' :
    '#commit .folded .machine { padding-top: 6px; margin-bottom: -12px; }\n' +
    '#commit .machine #toc .diffstat { border: 0; padding: 2px 0 0; }\n' +
