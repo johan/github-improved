@@ -99,7 +99,7 @@ function toggle_commit_folding(e) {
   if ($link.hasClass('loaded'))
     $(this).toggleClass('folded');
   else
-    $link.each(inline_changeset);
+    $link.each(inline_and_unfold);
 }
 
 // every mouse click is not interesting; return true only on left mouse clicks
@@ -113,8 +113,8 @@ function pluralize(noun, n) {
 }
 
 function inline_and_unfold() {
-  var self = this;
-  inline_changeset.call(self, function() { $(self).toggleClass('folded'); });
+  var $c = $(this).closest('.commit');
+  inline_changeset.call(this, function() { $c.removeClass('folded'); });
 }
 
 // loads the changeset link's full commit message, toc and the files changed and
