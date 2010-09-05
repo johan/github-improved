@@ -29,6 +29,7 @@ var options =
   (!options.changed ? '' :
    '#commit .folded .machine { padding-bottom: 0; }\n' +
    '#commit .machine #toc .diffstat { border: 0; padding: 2px 0 0; }\n' +
+   '#commit .machine #toc .diffstat-bar { opacity: 0.75; }\n' +
    '#commit .machine #toc .diffstat-summary { font-weight: normal; }\n' +
    '#commit .machine #toc { float: right; width: 1px; margin: 0; border: 0; }');
 
