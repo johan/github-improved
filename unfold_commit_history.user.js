@@ -117,6 +117,13 @@ function inline_and_unfold() {
   inline_changeset.call(this, function() { $c.removeClass('folded'); });
 }
 
+function n(x) {
+  if (x > (1e9 - 5e7 - 1)) return Math.round(x / 1e9) +'G';
+  if (x > (1e6 - 5e4 - 1)) return Math.round(x / 1e6) +'M';
+  if (x > (1e3 - 5e1 - 1)) return Math.round(x / 1e3) +'k';
+  return x + '';
+}
+
 // loads the changeset link's full commit message, toc and the files changed and
 // inlines them in the corresponding changeset (in the current page)
 function inline_changeset(doneCallback) {
@@ -140,17 +147,12 @@ function inline_changeset(doneCallback) {
   }
 
   function show_changed() {
-    function n(x) {
-      if (x > (1e9 - 5e7 - 1)) return Math.round(x / 1e9) +'G';
-      if (x > (1e6 - 5e4 - 1)) return Math.round(x / 1e6) +'M';
-      if (x > (1e3 - 5e1 - 1)) return Math.round(x / 1e3) +'k';
-      return x + '';
-    }
     var $m = $('.machine', commit), alreadyChanged = $m.find('#toc').length;
     if (alreadyChanged) return;
-    var F = 0, A = 0, D = 0, $a = $m.append('<span>c</span>hange'+
-    '<table id="toc"><tr><td class="diffstat"><a class="tooltipped leftwards">'+
-    '</a></td></tr></table>').find('#toc a');
+    var F = 0, A = 0, D = 0, $a = $m.append('<span>c</span>hange' +
+        '<table id="toc"><tbody><tr><td class="diffstat">' +
+          '<a class="tooltipped leftwards"></a>' +
+        '</td></tr></tbody></table>').find('#toc a');
 
     // count added / removed lines and number of files changed
     $('.changeset #toc .diffstat a[title]', commit).each(function count() {
@@ -176,6 +178,11 @@ function inline_changeset(doneCallback) {
   // find all diff links and fix them, annotate how many files were changed, and
   // insert line 2.. of the commit message in the unfolded view of the changeset
   function post_process() {
+    // the inline comments on the page are loaded dynamically, and get us more
+    // onload events than we want -- the first time, get them, otherwise, drop!
+    if (post_process.done) { console.warn('done:', this); $(this).remove(); return; } post_process.done = 1;
+    github_inlined_comments(this);
+
     var files = changeset.find('[id^="diff-"]').each(fix_link);
 
     if (options.changed) show_changed();
@@ -204,4 +211,78 @@ function inline_changeset(doneCallback) {
     .append('<div class="changeset" style="float: left; width: 100%;"/>')
     .find('.changeset') // ,#all_commit_comments removed from next line
     .load(this.href + '.html #commit,#toc,#files', post_process);
+}
+
+
+// Github handlers (from http://assets1.github.com/javascripts/bundle_github.js)
+// - this is all
+
+// 5:th $(function) in http://assets1.github.com/javascripts/bundle_github.js,
+// but with $() selectors scoped to a "self" node passed from the caller above.
+// On unfolding changeset pages with inline comments, we need to make them live,
+// as github itself is loading them dynamically after DOMContentLoaded.
+function github_inlined_comments(self) {
+  console.info('fixup:', $(".inline-comment-placeholder", self),
+                         $("#files .show-inline-comments-toggle", self),
+                         $("#inline_comments_toggle input", self));
+  $(".inline-comment-placeholder", self).each(function () {
+    var c = $(this);
+    $.get(c.attr("remote"), function got_comment_form(page) {
+      page = $(page);
+      c.closest("tr").replaceWith(page);
+      github_comment_form(page);
+      github_comment(page.find(".comment"));
+    });
+  });
+
+  $("#files .show-inline-comments-toggle", self).change(function () {
+    this.checked ? $(this).closest(".file").find("tr.inline-comments").show()
+                 : $(this).closest(".file").find("tr.inline-comments").hide();
+  }).change();
+
+  $("#inline_comments_toggle input", self).change(function () {
+    this.checked ? $("#comments").removeClass("only-commit-comments")
+                 : $("#comments").addClass("only-commit-comments");
+  }).change();
+}
+
+// http://assets1.github.com/javascripts/bundle_github.js::e(c)
+function github_comment_form(c) {
+  c.find("ul.inline-tabs").tabs();
+
+  c.find(".show-inline-comment-form a").click(function () {
+    c.find(".inline-comment-form").show();
+    $(this).hide();
+    return false;
+  });
+
+  var b = c.find(".previewable-comment-form")
+           .previewableCommentForm().closest("form");
+
+  b.submit(function () {
+    b.find(".ajaxindicator").show();
+    b.find("button").attr("disabled", "disabled");
+    b.ajaxSubmit({
+      success: function (f) {
+        var h = b.closest(".clipper"),
+            d = h.find(".comment-holder");
+        if (d.length == 0)
+          d = h.prepend($('<div class="inset comment-holder"></div>'))
+               .find(".comment-holder");
+        f = $(f);
+        d.append(f);
+        github_comment(f);
+        b.find("textarea").val("");
+        b.find(".ajaxindicator").hide();
+        b.find("button").attr("disabled", "");
+      }
+    });
+    return false;
+  });
+}
+
+// http://assets1.github.com/javascripts/bundle_github.js::a(c)
+function github_comment(c) {
+  c.find(".relatize").relatizeDate();
+  c.editableComment();
 }
