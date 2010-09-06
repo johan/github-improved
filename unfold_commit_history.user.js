@@ -180,7 +180,7 @@ function inline_changeset(doneCallback) {
   function post_process() {
     // the inline comments on the page are loaded dynamically, and get us more
     // onload events than we want -- the first time, get them, otherwise, drop!
-    if (post_process.done) { console.warn('done:', this); $(this).remove(); return; } post_process.done = 1;
+    if (post_process.done) { $(this).remove(); return; } post_process.done = 1;
     github_inlined_comments(this);
 
     var files = changeset.find('[id^="diff-"]').each(fix_link);
@@ -222,9 +222,6 @@ function inline_changeset(doneCallback) {
 // On unfolding changeset pages with inline comments, we need to make them live,
 // as github itself is loading them dynamically after DOMContentLoaded.
 function github_inlined_comments(self) {
-  console.info('fixup:', $(".inline-comment-placeholder", self),
-                         $("#files .show-inline-comments-toggle", self),
-                         $("#inline_comments_toggle input", self));
   $(".inline-comment-placeholder", self).each(function () {
     var c = $(this);
     $.get(c.attr("remote"), function got_comment_form(page) {
