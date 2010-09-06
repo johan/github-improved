@@ -6,7 +6,9 @@
 // @include       http://github.com/*/commits*
 // ==/UserScript==
 
-var options =
+var toggle_options = // flip switches you configure by clicking in the UI here:
+  { compact_committers: '#commit .human .actor .name span:contains("committer")'
+  }, options = // other options you have to edit this file for:
   { changed: true // Shows files changed, lines added / removed in folded mode
   }, at = '.commit.loading .machine a[hotkey="c"]',
     url = '/images/modules/browser/loading.gif',
@@ -18,14 +20,19 @@ var options =
   ' { display: none; }\n' +
   at +':before\n { content: url("'+ url +'"); }\n'+  // show "loading" throbber
   at +'\n { position: absolute; margin: 1px 0 0 -70px;' +
-  ' height: 14px; background: #EAF2F5; }\n' +
-  '#commit .machine { padding-left: 14px; }\n' + // over "commit" message
+  ' height: 14px; background: #EAF2F5; }\n' + // on top of the "commit" header:
+  '#commit .machine { padding-left: 14px; padding-bottom: 0; }\n' +
   '.fold_unfold, .download_all { float: right; }\n' +
   '.all_folded .fold_unfold:before { content: "\xAB un"; }\n' +
   '.all_folded .fold_unfold:after { content: " \xBB"; }\n' +
   '.all_unfolded .fold_unfold:before { content: "\xBB "; }\n' +
   '.all_unfolded .fold_unfold:after { content: " \xAB"; }\n' +
   '#commit .human .message pre { width: auto; }\n' + // don't wrap before EOL!
+  '.compact_committers #commit .human .actor { width: 50%; float:left; }\n' +
+  '.compact_committers #commit .human .actor:nth-of-type(odd) {' +
+  ' text-align: right; clear: none; }\n' +
+  '.compact_committers #commit .human .actor:nth-of-type(odd) .gravatar {' +
+  ' float: right; margin: 0 0 0 0.7em; }\n' +
   (!options.changed ? '' :
    '#commit .folded .machine { padding-bottom: 0; }\n' +
    '#commit .machine #toc .diffstat { border: 0; padding: 2px 0 0; }\n' +
@@ -58,6 +65,8 @@ function init() {
   $('head').append($('<style type="text/css"></style>').html(css));
   $('.commit').live('click', toggle_commit_folding);
 
+  init_config();
+
   $('<div class="pagination" style="margin: 0; padding: 0;"></div>')
     .prependTo('#commit .separator:first');
   $('<a class="download_all" hotkey="d"><u>d</u>ecorate all</a>')
@@ -70,6 +79,37 @@ function init() {
   $.hotkey('d', 'javascript:void(download_all())');
   $.hotkey('f', 'javascript:void(toggle_all_folding())');
 }
+
+
+function init_config() {
+  for (var o in toggle_options) {
+    if ((options[o] = !!localStorage.getItem(o)))
+      $('body').addClass(o);
+    $(toggle_options[o])
+      .live('click', { option: o }, toggle_option)
+      .live('hover', { option: o }, show_docs_for);
+  }
+}
+
+function toggle_option(e) {
+  var o = e.data.option;
+  if ((options[o] = !localStorage.getItem(o)))
+    localStorage.setItem(o, '1');
+  else
+    localStorage.removeItem(o);
+  $('body').toggleClass(o);
+  show_docs_for.apply(this, arguments);
+  return false; // do not fold / unfold
+}
+
+function show_docs_for(e) {
+  var o = e.data.option;
+  var is = !!localStorage.getItem(o);
+  $(this).css('cursor', 'pointer')
+         .attr('title', 'Click to toggle option "' + o.replace(/_/g, ' ') +'" '+
+                        (is ? 'off' : 'on'));
+}
+
 
 function toggle_all_folding() {
   if ($('body').hasClass('all_folded'))
