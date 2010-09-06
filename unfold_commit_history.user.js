@@ -12,6 +12,7 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   { changed: true // Shows files changed, lines added / removed in folded mode
   }, at = '.commit.loading .machine a[hotkey="c"]',
     url = '/images/modules/browser/loading.gif',
+    all = '.envelope.commit .message a:not(.loaded):not([href*="#"])',
     css = // used for .toggleClass('folded'), for, optionally, hiding:
   '.file.folded > .data,\n' + // individual .commit .changeset .file:s
   '.file.folded > .image,\n' + // (...or their corresponding .image:s)
@@ -28,7 +29,7 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   '.all_unfolded .fold_unfold:before { content: "\xBB "; }\n' +
   '.all_unfolded .fold_unfold:after { content: " \xAB"; }\n' +
   '#commit .human .message pre { width: auto; }\n' + // don't wrap before EOL!
-  '.folded .message .truncated:after { content: "(\u2026)"; }\n' +
+  '.folded .message .truncated:after { content: " (\u2026)"; }\n' +
   '.compact_committers #commit .human .actor { width: 50%; float:left; }\n' +
   '.compact_committers #commit .human .actor:nth-of-type(odd) {' +
   ' text-align: right; clear: none; }\n' +
@@ -120,13 +121,13 @@ function toggle_all_folding() {
 }
 
 function download_all() {
-  $('.envelope.commit .message a:not(.loaded)').each(inline_changeset);
+  $(all).each(inline_changeset);
 }
 
 function unfold_all() {
   $('body').addClass('all_unfolded').removeClass('all_folded');
   $('.commit.folded').removeClass('folded');
-  $('.envelope.commit .message a:not(.loaded)').each(inline_and_unfold);
+  $(all).each(inline_and_unfold);
 }
 
 function fold_all() {
@@ -221,23 +222,21 @@ function inline_changeset(doneCallback) {
   // find all diff links and fix them, annotate how many files were changed, and
   // insert line 2.. of the commit message in the unfolded view of the changeset
   function post_process() {
-    // the inline comments on the page are loaded dynamically, and get us more
-    // onload events than we want -- the first time, get them, otherwise, drop!
-    if (post_process.done) { $(this).remove(); return; } post_process.done = 1;
     github_inlined_comments(this);
 
-    var files = changeset.find('[id^="diff-"]').each(fix_link);
+    var files = changeset.find('[id^="diff-"]').each(fix_link), line2;
 
     if (options.changed) show_changed();
 
     // now, add lines 2.. of the commit message to the unfolded changeset view
     var whole = $('#commit', changeset); // contains the whole commit message
     try {
-      var line2 = $('.message pre', whole).html().replace(line1, ''),
-          trunc = '<span class="truncated"></span>',
-          $span = line2 && $('<span class="full"></span>').html(line2);
-      if (line2)
-        $('.human .message pre', commit).append(trunc, $span); // commit message
+      if ((line2 = $('.message pre', whole).html().replace(line1, ''))) {
+        $('.human .message pre', commit).append(
+          $('<span class="full"></span>').html(line2)); // commit message
+        $('.human .message pre a:not([href*="#"])', commit).after(
+          '<span title="Message continues..." class="truncated"></span>');
+      }
     } catch(e) {} // if this fails, fail silent -- no biggie
     whole.remove(); // and remove the remaining duplicate parts of that commit
 
