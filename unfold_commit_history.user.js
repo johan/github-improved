@@ -76,10 +76,14 @@ function init() {
   $('<a class="fold_unfold" hotkey="f"><u>f</u>old all</a>')
     .appendTo('.pagination');
   $('.fold_unfold').toggle(unfold_all, fold_all);
-  window.download_all = download_all; // export to public identifier
-  window.toggle_all_folding = toggle_all_folding; // export to public identifier
-  $.hotkey('d', 'javascript:void(download_all())');
-  $.hotkey('f', 'javascript:void(toggle_all_folding())');
+
+  // export to public identifiers for the hotkeys
+  window.toggle_all_folding = toggle_all_folding;
+  window.download_all       = download_all;
+  location.href = 'javascript:void($.hotkeys(' +
+    '{ f: toggle_all_folding' +
+    ', d: download_all' +
+    '}))';
 }
 
 
