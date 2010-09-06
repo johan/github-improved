@@ -20,7 +20,7 @@ var options =
   at +'\n { position: absolute; margin: 1px 0 0 -70px;' +
   ' height: 14px; background: #EAF2F5; }\n' +
   '#commit .machine { padding-left: 14px; }\n' + // over "commit" message
-  '.fold_unfold { float: right; }\n' +
+  '.fold_unfold, .download_all { float: right; }\n' +
   '.all_folded .fold_unfold:before { content: "\xAB un"; }\n' +
   '.all_folded .fold_unfold:after { content: " \xBB"; }\n' +
   '.all_unfolded .fold_unfold:before { content: "\xBB "; }\n' +
@@ -60,7 +60,9 @@ function init() {
 
   $('<div class="pagination" style="margin: 0; padding: 0;"></div>')
     .prependTo('#commit .separator:first');
-  $('<a class="fold_unfold" hotkey="f">fold all changesets</a>')
+  $('<a class="download_all" hotkey="d"><u>d</u>ecorate all</a>')
+    .appendTo('.pagination').click(download_all);
+  $('<a class="fold_unfold" hotkey="f"><u>f</u>old all</a>')
     .appendTo('.pagination');
   $('.fold_unfold').toggle(unfold_all, fold_all);
   window.download_all = download_all; // export to public identifier
