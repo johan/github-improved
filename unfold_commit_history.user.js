@@ -28,6 +28,7 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   '.all_unfolded .fold_unfold:before { content: "\xBB "; }\n' +
   '.all_unfolded .fold_unfold:after { content: " \xAB"; }\n' +
   '#commit .human .message pre { width: auto; }\n' + // don't wrap before EOL!
+  '.folded .message .truncated:after { content: "(\u2026)"; }\n' +
   '.compact_committers #commit .human .actor { width: 50%; float:left; }\n' +
   '.compact_committers #commit .human .actor:nth-of-type(odd) {' +
   ' text-align: right; clear: none; }\n' +
@@ -233,9 +234,10 @@ function inline_changeset(doneCallback) {
     var whole = $('#commit', changeset); // contains the whole commit message
     try {
       var line2 = $('.message pre', whole).html().replace(line1, ''),
+          trunc = '<span class="truncated"></span>',
           $span = line2 && $('<span class="full"></span>').html(line2);
       if (line2)
-        $('.human .message pre', commit).append($span); // commit message <pre>
+        $('.human .message pre', commit).append(trunc, $span); // commit message
     } catch(e) {} // if this fails, fail silent -- no biggie
     whole.remove(); // and remove the remaining duplicate parts of that commit
 
