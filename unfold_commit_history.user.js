@@ -262,7 +262,11 @@ function inline_changeset(doneCallback) {
 
 
 // Github handlers (from http://assets1.github.com/javascripts/bundle_github.js)
-// - this is all
+// - this is all probably prone to die horribly as the site grows features, over
+// time, unless this functionality gets absorbed and maintained by github later.
+
+// In other words, everything below is really just the minimum copy-paste needed
+// from the site javascript for inline comments to work -- minimal testing done.
 
 // 5:th $(function) in http://assets1.github.com/javascripts/bundle_github.js,
 // but with $() selectors scoped to a "self" node passed from the caller above.
