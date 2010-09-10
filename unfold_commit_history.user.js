@@ -37,7 +37,7 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   ' float: right; margin: 0 0 0 0.7em; }\n' +
   (!options.changed ? '' :
    '#commit .folded .machine { padding-bottom: 0; }\n' +
-   '#commit .machine #toc .diffstat { border: 0; padding: 2px 0 0; }\n' +
+   '#commit .machine #toc .diffstat { border: 0; padding: 1px 0 0; }\n' +
    '#commit .machine #toc .diffstat-bar { opacity: 0.75; }\n' +
    '#commit .machine #toc .diffstat-summary { font-weight: normal; }\n' +
    '#commit .machine #toc { float: right; width: 1px; margin: 0; border: 0; }');
@@ -215,6 +215,8 @@ function inline_changeset(doneCallback) {
     var text = '<b>+'+ n(A) +'</b> / <b>-'+ n(D) +'</b> in <b>'+ n(F) +'</b>',
         stat = '<span class="diffstat-summary">'+ text +'</span>\n', i, N = 5,
         plus = Math.round(A / (A + D) * N), bar = '<span class="diffstat-bar">';
+    // don't show more blobs than total lines, and show ties as even # of blobs
+    if (A + D < N) { plus = A; N = A + D; } else if (A === D) { --plus; --N; }
     for (i = 0; i < N; i++)
       bar += '<span class="'+ (i < plus ? 'plus' : 'minus') +'">\u2022</span>';
     bar += '</span>';
