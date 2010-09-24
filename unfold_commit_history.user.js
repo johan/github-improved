@@ -129,7 +129,8 @@ function hilight_related(e) {
 
 function unlight_related(e) {
   $('#c_'+ this.rel).removeClass('selected');
-  GitHub.Commits.select(GitHub.Commits.current);
+  if (null != GitHub.Commits.current)
+    GitHub.Commits.select(GitHub.Commits.current);
 }
 
 function show_docs() {
@@ -222,17 +223,17 @@ function toggle_commit_folding(e) {
   else
     $link.each(inline_and_unfold);
 
-  select($($(this).closest('.commit')));
+  select($($(this).closest('.commit')), !'scroll');
 }
 
 // pass a changeset node, id or hash and have github select it for us
-function select(changeset) {
+function select(changeset, scroll) {
   var node = changeset, nth;
   if ('string' === typeof changeset)
     node = $('#'+ (/^c_/.test(changeset) ? '' : 'c_') + changeset);
   nth = $('.commit').index(node);
   pageCall('GitHub.Commits.select', nth);
-  setTimeout(function() {
+  if (scroll) setTimeout(function() {
     var focused = $('.commit.selected');
   //if (focused.offset().top - $(window).scrollTop() + 50 > $(window).height())
       focused.scrollTo(200);
