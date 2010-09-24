@@ -68,6 +68,13 @@ function init() {
   $('head').append($('<style type="text/css"></style>').html(css));
   $('.commit').live('click', toggle_commit_folding);
 
+  prep_parent_links();
+  $(document).bind('DOMNodeInserted', when_settled(prep_parent_links), false);
+  $('a[href][hotkey=p]')
+    .live('mouseover', null, hilight_related)
+    .live('mouseout', null,  unlight_related)
+    .live('click', null,   scroll_to_related);
+
   init_config();
 
   $('<div class="pagination" style="margin: 0; padding: 0;"></div>')
@@ -93,10 +100,39 @@ function init() {
     'GitHub.Commits.__defineGetter__("elements",' +
         'function() { return $(".commit"); });void 0';
 
-  setTimeout(function() { AOP_afterCall('$.facebox.reveal', showDocs); }, 1e3);
+  setTimeout(function() { AOP_afterCall('$.facebox.reveal', show_docs); }, 1e3);
 }
 
-function showDocs() {
+// make all commits get @id:s c_<hash>, and all parent links get @rel="<hash>"
+function prep_parent_links() {
+  $('.commit:not([id]) a[href][hotkey=p]').each(function reroute() {
+    var path = this.pathname, hash = path.slice(path.lastIndexOf('/') + 1);
+    $(this).attr('rel', hash);
+  });
+  $('.commit:not([id]) a[href][hotkey=c]').each(function set_id() {
+    var path = this.pathname, id = 'c_' + path.slice(path.lastIndexOf('/') + 1);
+    $(this).closest('.commit').attr('id', id);
+  });
+}
+
+function scroll_to_related(e) {
+  var to = $('#c_'+ this.rel);
+  if (!to.length) return true;
+  select(this.rel);
+  return false;
+}
+
+// hilight the related commit changeset, when a commit link is hovered
+function hilight_related(e) {
+  $('#c_'+ this.rel).addClass('selected');
+}
+
+function unlight_related(e) {
+  $('#c_'+ this.rel).removeClass('selected');
+  GitHub.Commits.select(GitHub.Commits.current);
+}
+
+function show_docs() {
   var docs =
   { f: '(un)Fold selected (or all, if none)'
   , d: 'Describe selected (or all, if none)'
@@ -186,9 +222,26 @@ function toggle_commit_folding(e) {
   else
     $link.each(inline_and_unfold);
 
-  // click to select:
-  var current = $('.commit').index($($(this).closest('.commit')));
-  location.href = 'javascript:void GitHub.Commits.select('+ current +')';
+  select($($(this).closest('.commit')));
+}
+
+// pass a changeset node, id or hash and have github select it for us
+function select(changeset) {
+  var node = changeset, nth;
+  if ('string' === typeof changeset)
+    node = $('#'+ (/^c_/.test(changeset) ? '' : 'c_') + changeset);
+  nth = $('.commit').index(node);
+  pageCall('GitHub.Commits.select', nth);
+  setTimeout(function() {
+    var focused = $('.commit.selected');
+  //if (focused.offset().top - $(window).scrollTop() + 50 > $(window).height())
+      focused.scrollTo(200);
+  }, 50);
+}
+
+function pageCall(fn/*, arg, ... */) {
+  var args = JSON.stringify([].slice.call(arguments, 1)).slice(1, -1);
+  location.href = 'javascript:void '+ fn +'('+ args +')';
 }
 
 // every mouse click is not interesting; return true only on left mouse clicks
@@ -313,7 +366,23 @@ function AOP_afterCall(name, fn) {
   '})('+ name +')} finally {void 0}';
 }
 
+// drop calls until at least <ms> (or 100) ms apart, then pass the last on to cb
+function when_settled(cb, ms) {
+  function is_settled() {
+    waiter = last = null;
+    cb.apply(self, args);
+  };
 
+  ms = ms || 100;
+  var last, waiter, self, args;
+
+  return function () {
+    self = this;
+    args = arguments;
+    if (waiter) clearTimeout(waiter);
+    waiter = setTimeout(is_settled, 100);
+  };
+}
 
 // Github handlers (from http://assets1.github.com/javascripts/bundle_github.js)
 // - this is all probably prone to die horribly as the site grows features, over
