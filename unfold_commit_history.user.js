@@ -76,7 +76,10 @@ function init() {
   $('a[href][hotkey=p]')
     .live('mouseover', null, hilight_related)
     .live('mouseout', null,  unlight_related)
-    .live('click', null,   scroll_to_related);
+    .live('click', null,   scroll_to_related); // if triggered by mouse click,
+  // scroll to the commit if it's in view, otherwise load that page instead --
+  // and ditto but for trigger by keyboard hotkey instead (falls back to link):
+  GitHub.Commits.link = AOP_wrap_around(try_scroll_first, GitHub.Commits.link);
 
   init_config();
 
@@ -103,7 +106,7 @@ function init() {
     'GitHub.Commits.__defineGetter__("elements",' +
         'function() { return $(".commit"); });void 0';
 
-  setTimeout(function() { AOP_afterCall('$.facebox.reveal', show_docs); }, 1e3);
+  setTimeout(function() { AOP_also_call('$.facebox.reveal', show_docs); }, 1e3);
 }
 
 // make all commits get @id:s c_<hash>, and all parent links get @rel="<hash>"
@@ -121,10 +124,23 @@ function prep_parent_links() {
   });
 }
 
+function try_scroll_first(wrappee, link_type) {
+  function normal() { return wrappee.apply(self, args); }
+  var args = [].slice.call(arguments, 1), self = this;
+  if (link_type !== 'p') return normal();
+
+  var link = GitHub.Commits.selected().find('[hotkey="'+ link_type +'"]')[0];
+  // scroll_to_related returns true if link is not in the current view
+  if (link && scroll_to_related.call(link) &&
+      confirm('Parent commit not in view -- load parent page instead?'))
+    return normal();
+  return false;
+}
+
 function scroll_to_related(e) {
   var to = $('#c_'+ this.rel);
   if (!to.length) return true;
-  select(this.rel);
+  select(this.rel, true);
   return false;
 }
 
@@ -139,7 +155,7 @@ function unlight_related(e) {
     GitHub.Commits.select(GitHub.Commits.current);
 }
 
-function show_docs() {
+function show_docs(x) {
   var docs =
   { f: '(un)Fold selected (or all, if none)'
   , d: 'Describe selected (or all, if none)'
@@ -148,6 +164,7 @@ function show_docs() {
     $('#facebox .shortcuts .columns:first .column.middle dl:last')
       .before('<dl class="keyboard-mappings"><dt>'+ key +'</dt>' +
               '<dd>'+ docs[key] +'</dd></dl>');
+  return x;
 }
 
 
@@ -363,12 +380,21 @@ function inline_changeset(doneCallback) {
     .load(this.href + '.html #commit,#toc,#files', post_process);
 }
 
-function AOP_afterCall(name, fn) {
+// Makes a function that can replace wrappee that instead calls wrapper(wrappee)
+// plus all the args wrappee should have received. (If wrapper does not want the
+// original function to run, it does not have to.)
+function AOP_wrap_around(wrapper, wrappee) {
+  return function() {
+    return wrapper.apply(this, [wrappee].concat([].slice.call(arguments, 0)));
+  };
+}
+
+// replace <name> with a function that returns fn(name(...))
+function AOP_also_call(name, fn) {
   location.href = 'javascript:try {'+ name +' = (function(orig) {\n' +
     'return function() {\n' +
       'var res = orig.apply(this, arguments);\n' +
-      '('+ (fn.toString()) +')();' +
-      'return res;' +
+      'return ('+ (fn.toString()) +')(res);' +
     '};' +
   '})('+ name +')} finally {void 0}';
 }
