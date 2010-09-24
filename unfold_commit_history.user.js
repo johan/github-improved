@@ -8,6 +8,7 @@
 
 var toggle_options = // flip switches you configure by clicking in the UI here:
   { compact_committers: '#commit .human .actor .name span:contains("committer")'
+  , chain_adjacent_connected_commits: '#commit > .separator > h2'
   }, options = // other options you have to edit this file for:
   { changed: true // Shows files changed, lines added / removed in folded mode
   }, at = '.commit.loading .machine a[hotkey="c"]',
@@ -19,6 +20,8 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   '.commit.folded .changeset,\n' + // whole .commit:s' diffs,
   '.commit.folded .message .full' + // + full checkin message
   ' { display: none; }\n' +
+  '.chain_adjacent_connected_commits #commit .adjacent.commit:not(.selected)' +
+  ':not(:last-child) { border-bottom-color: transparent; }\n' +
   at +':before\n { content: url("'+ url +'"); }\n'+  // show "loading" throbber
   at +'\n { position: absolute; margin: 1px 0 0 -70px; height: 14px; }\n' +
   '#commit .selected.loading .machine > span:nth-child(1) { border: none; }\n' +
@@ -105,13 +108,16 @@ function init() {
 
 // make all commits get @id:s c_<hash>, and all parent links get @rel="<hash>"
 function prep_parent_links() {
+  function hash(a) {
+    return a.pathname.slice(a.pathname.lastIndexOf('/') + 1);
+  }
   $('.commit:not([id]) a[href][hotkey=p]').each(function reroute() {
-    var path = this.pathname, hash = path.slice(path.lastIndexOf('/') + 1);
-    $(this).attr('rel', hash);
+    $(this).attr('rel', hash(this));
   });
   $('.commit:not([id]) a[href][hotkey=c]').each(function set_id() {
-    var path = this.pathname, id = 'c_' + path.slice(path.lastIndexOf('/') + 1);
-    $(this).closest('.commit').attr('id', id);
+    var id = hash(this), ci = $(this).closest('.commit'), pr = ci.prev();
+    if (pr.find('a[hotkey=p][href$='+ id +']').length) pr.addClass('adjacent');
+    ci.attr('id', 'c_' + id);
   });
 }
 
