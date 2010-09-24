@@ -20,8 +20,7 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   '.commit.folded .message .full' + // + full checkin message
   ' { display: none; }\n' +
   at +':before\n { content: url("'+ url +'"); }\n'+  // show "loading" throbber
-  at +'\n { position: absolute; margin: 1px 0 0 -70px;' +
-  ' height: 14px; background: #EAF2F5; }\n' + // on top of the "commit" header:
+  at +'\n { position: absolute; margin: 1px 0 0 -70px; height: 14px; }\n' +
   '#commit .machine { padding-left: 14px; padding-bottom: 0; }\n' +
   '.fold_unfold, .download_all { float: right; }\n' +
   '.all_folded .fold_unfold:before { content: "\xAB un"; }\n' +
@@ -82,12 +81,15 @@ function init() {
   window.toggle_all_folding      = toggle_all_folding;
   window.download_selected       = download_selected;
   window.download_all            = download_all;
-  location.href = 'javascript:void($.hotkeys(' +
+  location.href = 'javascript:$.hotkeys(' +
     '{ f: toggle_selected_folding' +
     ', F: toggle_all_folding' +
     ', d: download_selected' +
     ', D: download_all' +
-    '}))';
+    '});' + // adds our own hotkeys
+    'delete GitHub.Commits.elements;' + // makes j / k span demand-loaded pages
+    'GitHub.Commits.__defineGetter__("elements",' +
+        'function() { return $(".commit"); });void 0';
 }
 
 
@@ -158,6 +160,7 @@ function fold_all() {
   $('.commit').addClass('folded');
 }
 
+// click to fold / unfold, and select:
 function toggle_commit_folding(e) {
   if (isNotLeftButton(e) || $(e.target).closest('a[href], .changeset').length)
     return; // clicked a link, or in the changeset; don't do fold action
@@ -167,6 +170,10 @@ function toggle_commit_folding(e) {
     $(this).toggleClass('folded');
   else
     $link.each(inline_and_unfold);
+
+  // click to select:
+  var current = $('.commit').index($($(this).closest('.commit')));
+  location.href = 'javascript:void GitHub.Commits.select('+ current +')';
 }
 
 // every mouse click is not interesting; return true only on left mouse clicks
