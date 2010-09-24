@@ -21,6 +21,7 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   ' { display: none; }\n' +
   at +':before\n { content: url("'+ url +'"); }\n'+  // show "loading" throbber
   at +'\n { position: absolute; margin: 1px 0 0 -70px; height: 14px; }\n' +
+  '#commit .selected.loading .machine > span:nth-child(1) { border: none; }\n' +
   '#commit .machine { padding-left: 14px; padding-bottom: 0; }\n' +
   '.fold_unfold, .download_all { float: right; }\n' +
   '.all_folded .fold_unfold:before { content: "\xAB un"; }\n' +
@@ -38,7 +39,8 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
    '#commit .folded .machine { padding-bottom: 0; }\n' +
    '#commit .machine #toc .diffstat { border: 0; padding: 1px 0 0; }\n' +
    '#commit .machine #toc .diffstat-bar { opacity: 0.75; }\n' +
-   '#commit .machine #toc .diffstat-summary { font-weight: normal; }\n' +
+   '#commit .machine #toc .diffstat-summary { font-weight: normal; }\n'+
+   '#commit .envelope.selected .machine #toc span { border-bottom: 0; }\n' +
    '#commit .machine #toc { float: right; width: 1px; margin: 0; border: 0; }');
 
 
@@ -90,6 +92,19 @@ function init() {
     'delete GitHub.Commits.elements;' + // makes j / k span demand-loaded pages
     'GitHub.Commits.__defineGetter__("elements",' +
         'function() { return $(".commit"); });void 0';
+
+  setTimeout(function() { AOP_afterCall('$.facebox.reveal', showDocs); }, 1e3);
+}
+
+function showDocs() {
+  var docs =
+  { f: '(un)Fold selected (or all, if none)'
+  , d: 'Describe selected (or all, if none)'
+  };
+  for (var key in docs)
+    $('#facebox .shortcuts .columns:first .column.middle dl:last')
+      .before('<dl class="keyboard-mappings"><dt>'+ key +'</dt>' +
+              '<dd>'+ docs[key] +'</dd></dl>');
 }
 
 
@@ -223,7 +238,7 @@ function inline_changeset(doneCallback) {
   function show_changed() {
     var $m = $('.machine', commit), alreadyChanged = $m.find('#toc').length;
     if (alreadyChanged) return;
-    var F = 0, A = 0, D = 0, $a = $m.append('<span>c</span>hange' +
+    var F = 0, A = 0, D = 0, $a = $m.append('diff' +
         '<table id="toc"><tbody><tr><td class="diffstat">' +
           '<a class="tooltipped leftwards"></a>' +
         '</td></tr></tbody></table>').find('#toc a');
@@ -287,6 +302,17 @@ function inline_changeset(doneCallback) {
     .find('.changeset') // ,#all_commit_comments removed from next line
     .load(this.href + '.html #commit,#toc,#files', post_process);
 }
+
+function AOP_afterCall(name, fn) {
+  location.href = 'javascript:try {'+ name +' = (function(orig) {\n' +
+    'return function() {\n' +
+      'var res = orig.apply(this, arguments);\n' +
+      '('+ (fn.toString()) +')();' +
+      'return res;' +
+    '};' +
+  '})('+ name +')} finally {void 0}';
+}
+
 
 
 // Github handlers (from http://assets1.github.com/javascripts/bundle_github.js)
