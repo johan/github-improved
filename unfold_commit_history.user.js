@@ -78,11 +78,15 @@ function init() {
   $('.fold_unfold').toggle(unfold_all, fold_all);
 
   // export to public identifiers for the hotkeys
-  window.toggle_all_folding = toggle_all_folding;
-  window.download_all       = download_all;
+  window.toggle_selected_folding = toggle_selected_folding;
+  window.toggle_all_folding      = toggle_all_folding;
+  window.download_selected       = download_selected;
+  window.download_all            = download_all;
   location.href = 'javascript:void($.hotkeys(' +
-    '{ f: toggle_all_folding' +
-    ', d: download_all' +
+    '{ f: toggle_selected_folding' +
+    ', F: toggle_all_folding' +
+    ', d: download_selected' +
+    ', D: download_all' +
     '}))';
 }
 
@@ -116,6 +120,21 @@ function show_docs_for(e) {
                         (is ? 'off' : 'on'));
 }
 
+function toggle_selected_folding() {
+  var selected = $('.selected');
+  if (selected.length)
+    selected.click();
+  else
+    toggle_all_folding();
+}
+
+function download_selected() {
+  var selected = $('.selected' + all);
+  if (selected.length)
+    selected.each(inline_changeset);
+  else
+    download_all();
+}
 
 function toggle_all_folding() {
   if ($('body').hasClass('all_folded'))
