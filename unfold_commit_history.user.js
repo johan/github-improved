@@ -27,6 +27,7 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   at +'\n { position: absolute; margin: 1px 0 0 -70px; height: 14px; }\n' +
   '#commit .selected.loading .machine > span:nth-child(1) { border: none; }\n' +
   '#commit .machine { padding-left: 14px; padding-bottom: 0; }\n' +
+
   '.fold_unfold, .download_all { float: right; }\n' +
   '.all_folded .fold_unfold:before { content: "\xAB un"; }\n' +
   '.all_folded .fold_unfold:after { content: " \xBB"; }\n' +
@@ -34,6 +35,7 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   '.all_unfolded .fold_unfold:after { content: " \xAB"; }\n' +
   '#commit .human .message pre { width: auto; }\n' + // don't wrap before EOL!
   '.folded .message .truncated:after { content: " (\u2026)"; }\n' +
+
   '.compact_committers #commit .human .actor { width: 50%; float:left; }\n' +
   '.compact_committers #commit .human .actor:nth-of-type(odd) {' +
   ' text-align: right; clear: none; }\n' +
