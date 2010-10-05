@@ -9,6 +9,7 @@
 var toggle_options = // flip switches you configure by clicking in the UI here:
   { compact_committers: '#commit .human .actor .name span:contains("committer")'
   , chain_adjacent_connected_commits: '#commit > .separator > h2'
+  , iso_times: '#commit .human .actor .date > abbr'
   }, options = // other options you have to edit this file for:
   { changed: true // Shows files changed, lines added / removed in folded mode
   }, at = '.commit.loading .machine a[hotkey="c"]',
@@ -38,6 +39,13 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   ' text-align: right; clear: none; }\n' +
   '.compact_committers #commit .human .actor:nth-of-type(odd) .gravatar {' +
   ' float: right; margin: 0 0 0 0.7em; }\n' +
+
+  'body:not(.iso_times) .date > .iso { display: none; }\n' +
+  '.iso_times .date > .relatize.relatized:before { content: "("; }\n' +
+  '.iso_times .date > .relatize.relatized:after { content: ")"; }\n' +
+  '.iso_times .date > .relatize.relatized { display: inline; }\n' +
+  '.iso_times .date > .relatize { display: none; }\n' +
+
   (!options.changed ? '' :
    '#commit .folded .machine { padding-bottom: 0; }\n' +
    '#commit .machine #toc .diffstat { border: 0; padding: 1px 0 0; }\n' +
@@ -122,6 +130,14 @@ function prep_parent_links() {
     if (pr.find('a[hotkey=p][href$='+ id +']').length) pr.addClass('adjacent');
     ci.attr('id', 'c_' + id);
   });
+
+  $('.date > abbr.relatize:first-child').each(unrelatize_dates);
+}
+
+function unrelatize_dates() {
+  var ts = this.title, at = new Date(Date.parse(ts)), t = ts.split(' ')[1],
+      wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][at.getDay()];
+  $(this).before('<abbr class="iso" title="'+ ts +'">'+ wd +' '+ t +' </abbr>');
 }
 
 function try_scroll_first(wrappee, link_type) {
