@@ -240,7 +240,7 @@ function toggle_commit_folding(e) {
   if (isNotLeftButton(e) || $(e.target).closest('a[href], .changeset').length)
     return; // clicked a link, or in the changeset; don't do fold action
 
-  var $link = $('.message a', this);
+  var $link = $('.message a:not([href*="#"])', this);
   if ($link.hasClass('loaded'))
     $(this).toggleClass('folded');
   else
