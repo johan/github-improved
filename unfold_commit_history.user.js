@@ -62,12 +62,15 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
 // since we have no other code that does anything, the Greasemonkey sandbox does
 // nothing at all when it has spawned the page script, which gets to use jQuery.
 // (jQuery unfortunately degrades much when run in Mozilla's javascript sandbox)
-(function(run_me_in_page_scope) {
-  if ('undefined' == typeof __RUNS_IN_PAGE_SCOPE__) { // unsandbox, please!
+if ('object' === typeof opera && opera.extension) {
+  this.__proto__ = window; // bleed the web page's js into our execution scope
+  document.addEventListener('DOMContentLoaded', init, false); // GM-style init
+} else (function(run_me_in_page_scope) { // for Chrome or Firefox+Greasemonkey
+  if ('undefined' == typeof __UNFOLD_IN_PAGE_SCOPE__) { // unsandbox, please!
     var src = arguments.callee.caller.toString(),
      script = document.createElement('script');
     script.setAttribute("type", "application/javascript");
-    script.innerHTML = "const __RUNS_IN_PAGE_SCOPE__ = true;\n(" + src + ')();';
+    script.innerHTML = "const __UNFOLD_IN_PAGE_SCOPE__ = true;\n("+ src +')();';
     document.documentElement.appendChild(script);
     document.documentElement.removeChild(script);
   } else { // unsandboxed -- here we go!
