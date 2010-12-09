@@ -191,7 +191,7 @@ function show_docs(x) {
 
 function init_config() {
   for (var o in toggle_options) {
-    if ((options[o] = !!localStorage.getItem(o)))
+    if ((options[o] = !!window.localStorage.getItem(o)))
       $('body').addClass(o);
     $(toggle_options[o])
       .live('click', { option: o }, toggle_option)
@@ -201,10 +201,10 @@ function init_config() {
 
 function toggle_option(e) {
   var o = e.data.option;
-  if ((options[o] = !localStorage.getItem(o)))
-    localStorage.setItem(o, '1');
+  if ((options[o] = !window.localStorage.getItem(o)))
+    window.localStorage.setItem(o, '1');
   else
-    localStorage.removeItem(o);
+    window.localStorage.removeItem(o);
   $('body').toggleClass(o);
   show_docs_for.apply(this, arguments);
   return false; // do not fold / unfold
@@ -212,7 +212,7 @@ function toggle_option(e) {
 
 function show_docs_for(e) {
   var o = e.data.option;
-  var is = !!localStorage.getItem(o);
+  var is = !!window.localStorage.getItem(o);
   $(this).css('cursor', 'pointer')
          .attr('title', 'Click to toggle option "' + o.replace(/_/g, ' ') +'" '+
                         (is ? 'off' : 'on'));
