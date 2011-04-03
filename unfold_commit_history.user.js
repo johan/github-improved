@@ -4,6 +4,8 @@
 // @description   Adds "unfold all changesets" buttons (hotkey: f) above/below Commit History pages at github, letting you browse the source changes without leaving the page. (Click a commit header again to re-fold it.) You can also fold or unfold individual commits by clicking on non-link parts of the commit.
 // @include       https://github.com/*/commits*
 // @include       http://github.com/*/commits*
+// @match         https://github.com/*/commits*
+// @match         http://github.com/*/commits*
 // ==/UserScript==
 
 var toggle_options = // flip switches you configure by clicking in the UI here:
