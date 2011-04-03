@@ -147,7 +147,7 @@ function unrelatize_dates() {
 
 function try_scroll_first(wrappee, link_type) {
   function normal() { return wrappee.apply(self, args); }
-  var args = [].slice.call(arguments, 1), self = this;
+  var args = _slice.call(arguments, 1), self = this;
   if (link_type !== 'p') return normal();
 
   var link = GitHub.Commits.selected().find('[hotkey="'+ link_type +'"]')[0];
@@ -285,7 +285,7 @@ function select(changeset, scroll) {
 }
 
 function pageCall(fn/*, arg, ... */) {
-  var args = JSON.stringify([].slice.call(arguments, 1)).slice(1, -1);
+  var args = JSON.stringify(_slice.call(arguments, 1)).slice(1, -1);
   location.href = 'javascript:void '+ fn +'('+ args +')';
 }
 
@@ -302,6 +302,11 @@ function pluralize(noun, n) {
 function inline_and_unfold() {
   var $c = $(this).closest('.commit');
   inline_changeset.call(this, function() { $c.removeClass('folded'); });
+}
+
+var _slice = Array.prototype.slice;
+function array(ish) {
+  return _slice.call(ish, 0);
 }
 
 function n(x) {
@@ -406,7 +411,7 @@ function inline_changeset(doneCallback) {
 // original function to run, it does not have to.)
 function AOP_wrap_around(wrapper, wrappee) {
   return function() {
-    return wrapper.apply(this, [wrappee].concat([].slice.call(arguments, 0)));
+    return wrapper.apply(this, [wrappee].concat(array(arguments, 0)));
   };
 }
 
