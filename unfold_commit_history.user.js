@@ -10,6 +10,9 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   { compact_committers: '#commit .human .actor .name span:contains("committer")'
   , chain_adjacent_connected_commits: '#commit > .separator > h2'
   , iso_times: '#commit .human .actor .date > abbr'
+  , author_filter: '.commit .human .actor:nth-child(2) .gravatar > img'
+  }, toggle =
+  { author_filter: function(on) { $('#filtered_authors').attr('disabled',!on); }
   }, options = // other options you have to edit this file for:
   { changed: true // Shows files changed, lines added / removed in folded mode
   }, at = '.commit.loading .machine a[hotkey="c"]',
@@ -44,6 +47,15 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
 
   'body:not(.iso_times) .date > .iso { display: none; }\n' +
   '.iso_times .date > .relatize.relatized:before { content: "("; }\n' +
+  '.iso_times .date > .relatize.relatized:after { content: ")"; }\n' +
+  '.iso_times .date > .relatize.relatized { display: inline; }\n' +
+  '.iso_times .date > .relatize { display: none; }\n' +
+
+  'body:not(.author_filter) #author_filter { display: none; }\n' +
+  '#author_filter img.filtered { opacity: 0.5; }' +
+  '#author_filter img { margin: 0 .3em 0 0; background-color: white; '+
+  ' padding: 2px; border: 1px solid #D0D0D0; }' +
+
   '.iso_times .date > .relatize.relatized:after { content: ")"; }\n' +
   '.iso_times .date > .relatize.relatized { display: inline; }\n' +
   '.iso_times .date > .relatize { display: none; }\n' +
@@ -120,6 +132,57 @@ function init() {
         'function() { return $(".commit"); });void 0';
 
   setTimeout(function() { AOP_also_call('$.facebox.reveal', show_docs); }, 1e3);
+
+  render_author_filter();
+}
+
+// makes all authors in the view show up on top; on page load, or page update
+function render_author_filter(e) {
+  if (e) { // postpone reruns until 100ms passed without activity
+    if (render_author_filter.scheduled)
+      clearTimeout(render_author_filter.scheduled);
+    render_author_filter.scheduled = setTimeout(render_author_filter, 100, 0);
+    return;
+  }
+  delete render_author_filter.scheduled;
+
+  if (!$('#author_filter').length) {
+    $('#path').after('<div id="author_filter"></div>');
+    $('#commit').bind('DOMSubtreeModified', render_author_filter);
+  }
+  $('.commit:not(.by) .human .actor:nth-child(2) .gravatar > img')
+    .each(update_author_filter); // find not-yet-catered commits
+}
+
+// makes a particular commit in the view get counted and added to author filter
+function update_author_filter(e) {
+  var mail_hash = /avatar\/([a-f\d]{32})/.exec(this.src)
+    , author_id = 'author_'+ mail_hash[1]
+    , $gravatar = $('#'+ author_id)
+    , commit_no = parseInt($gravatar.attr('title') || '0', 10)
+    , $envelope = !commit_no && $(this).parents('.actor');
+  if ($envelope) {
+    var img = this.cloneNode(true);
+    img.alt = $envelope.find('.name').text().replace(/\s*\(author\)\s*$/, '');
+    img.id  = author_id;
+    $('#author_filter').append(img);
+    $(img).click(toggle_author_commits);
+    img.title = ++commit_no +' commit by '+ img.alt;
+    $('head').append('<style id="filtered_authors"></style>');
+  }
+  else
+    $gravatar.attr('title',
+                   ++commit_no +' commits by '+ $gravatar.attr('alt'));
+  $(this).parents('.commit').addClass('by '+author_id);
+  $('#'+ author_id).css('padding-right', (1 + commit_no) +'px');
+}
+
+function toggle_author_commits(e) {
+  $(this).toggleClass('filtered');
+  var hide = $('#author_filter .filtered').map(function() { return this.id; });
+  if (hide.length) hide = '.'+ (array(hide).join(',.')) +' { display: none; }';
+  else hide = '';
+  $('#filtered_authors').html(hide);
 }
 
 // make all commits get @id:s c_<hash>, and all parent links get @rel="<hash>"
@@ -200,11 +263,15 @@ function init_config() {
 }
 
 function toggle_option(e) {
-  var o = e.data.option;
-  if ((options[o] = !window.localStorage.getItem(o)))
+  var o = e.data.option, cb, toggle_fn = toggle[o];
+  if ((options[o] = !window.localStorage.getItem(o))) {
     window.localStorage.setItem(o, '1');
-  else
+    if (toggle_fn) toggle_fn(true);
+  }
+  else {
     window.localStorage.removeItem(o);
+    if (toggle_fn) toggle_fn(false);
+  }
   $('body').toggleClass(o);
   show_docs_for.apply(this, arguments);
   return false; // do not fold / unfold
@@ -258,7 +325,8 @@ function fold_all() {
 
 // click to fold / unfold, and select:
 function toggle_commit_folding(e) {
-  if (isNotLeftButton(e) || $(e.target).closest('a[href], .changeset').length)
+  if (isNotLeftButton(e) ||
+      $(e.target).closest('a[href], .changeset, .gravatar').length)
     return; // clicked a link, or in the changeset; don't do fold action
 
   var $link = $('.message a:not([href*="#"])', this);
@@ -411,7 +479,7 @@ function inline_changeset(doneCallback) {
 // original function to run, it does not have to.)
 function AOP_wrap_around(wrapper, wrappee) {
   return function() {
-    return wrapper.apply(this, [wrappee].concat(array(arguments, 0)));
+    return wrapper.apply(this, [wrappee].concat(array(arguments)));
   };
 }
 
