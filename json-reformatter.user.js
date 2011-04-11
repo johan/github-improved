@@ -26,7 +26,7 @@ var $json, $ln, $o_js, $o_ln // json and line numbers jQuery objects + originals
   '.json .unfolded.hovered{background:rgba(255,192,203,0.5);}' +
   '.json .unfolded{cursor:nw-resize;}';
 
-var JSONFormatter = top.JSONFormatter = (function() {
+var JSONFormatter = (function() {
   var toString = Object.prototype.toString, BR = '<br\n/>', re =
     // This regex attempts to match a JSONP structure (ws includes Unicode ws)
     // * optional leading ws
@@ -224,8 +224,8 @@ var JSONFormatter = top.JSONFormatter = (function() {
 })();
 
 function mode_switch() {
-  (top.$o_ln = $o_ln).toggle(); $ln.toggle();
-  (top.$o_js = $o_js).toggle(); $json.toggle();
+  $o_ln.toggle(); $ln.toggle();
+  $o_js.toggle(); $json.toggle();
 }
 
 function mode_pick(to) {
@@ -246,9 +246,9 @@ function init() {
     , json  = $o_js.text().replace(/\u00A0+/g,'')
     , html;
   if (1 === $o_js.length) try {
-    html  = top.html  = JSONFormatter(top.json = json);
-    $ln   = top.$ln   = $(el_ln).hide(); $o_ln.before($ln);
-    $json = top.$json = $(el_js).hide(); $o_js.before($json);
+    html  = JSONFormatter(json);
+    $ln   = $(el_ln).hide(); $o_ln.before($ln);
+    $json = $(el_js).hide(); $o_js.before($json);
     $json.css('padding-left', '1em'); // this looks much nicer
     $json.closest('td').css('vertical-align', 'top'); // ditto – not "middle"
     $json.html(html);
@@ -256,7 +256,7 @@ function init() {
       ln += '<span id="L'+ n +'" rel="#L'+ n +'">'+ n +'</span>\n';
     $ln.html(ln);
     JSONFormatter.init(document);
-    (top.mode_switch = mode_switch)();
+    mode_switch();
 
     var $actions = $('#files .file .meta .actions');
     $actions.prepend('<li><a id="orig" href="#orig">source</a></li>');
