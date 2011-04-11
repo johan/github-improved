@@ -228,6 +228,16 @@ function mode_switch() {
   (top.$o_js = $o_js).toggle(); $json.toggle();
 }
 
+function mode_pick(to) {
+  var json = 'orig' === to ? 'hide' : 'show'
+    , orig = 'orig' === to ? 'show' : 'hide';
+  return function(e) {
+    $json[json](); $ln[json]();
+    $o_js[orig](); $o_ln[orig]();
+    e.preventDefault();
+  };
+}
+
 function init() {
   $o_ln = $('#files .file .data .line_numbers');
   $o_js = $('#files .file .data .highlight pre');
@@ -247,6 +257,12 @@ function init() {
     $ln.html(ln);
     JSONFormatter.init(document);
     (top.mode_switch = mode_switch)();
+
+    var $actions = $('#files .file .meta .actions');
+    $actions.prepend('<li><a id="orig" href="#orig">source</a></li>');
+    $actions.prepend('<li><a id="json" href="#json">json</a></li>');
+    $actions.find('#orig').click(mode_pick('orig'));
+    $actions.find('#json').click(mode_pick('json'));
   } catch(e) { console.error(e); }
 }
 
