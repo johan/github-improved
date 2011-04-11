@@ -10,10 +10,10 @@ var $json, $ln, $o_js, $o_ln // json and line numbers jQuery objects + originals
 , spc = '                                                                      '
 , js_css = // all custom formatting for our node.js-style-indented foldable json
   '.json{white-space:pre-wrap;font-family:monospace;}' +
-  '.json .callback{color:#A52A2A;}' +
-  '.json .prop{color:#AAA;}' +
-  '.json .str{color:green;}' +
-  '.json .null,.json .bool{color:blue;}' +
+  '.json .callback{color:Blue;}' +
+  '.json .prop{color:DarkGoldenRod;}' +
+  '.json .str{color:RosyBrown;}' +
+  '.json .null,.json .bool{color:CadetBlue;}' +
   '.json .num{color:#000;}' +
   // let :before rules remain visible but make this essentially "display: none":
   '.json .folded *{height:0;width:0;top:-999cm;left:-999cm;white-space:normal;'+
