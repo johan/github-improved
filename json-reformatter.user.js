@@ -240,7 +240,7 @@ function init() {
     $ln   = top.$ln   = $(el_ln).hide(); $o_ln.before($ln);
     $json = top.$json = $(el_js).hide(); $o_js.before($json);
     $json.css('padding-left', '1em'); // this looks much nicer
-    $json.parent().css('vertical-align', 'top'); // similarly; not "middle"
+    $json.closest('td').css('vertical-align', 'top'); // ditto – not "middle"
     $json.html(html);
     for (var ln = '', lines = 1+$json.find('br').length, n = 1; n <= lines; n++)
       ln += '<span id="L'+ n +'" rel="#L'+ n +'">'+ n +'</span>\n';
