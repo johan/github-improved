@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          Github: unfold commit history
 // @namespace     http://github.com/johan/
-// @description   Adds "unfold all changesets" buttons (hotkey: f) above/below Commit History pages at github, letting you browse the source changes without leaving the page. (Click a commit header again to re-fold it.) You can also fold or unfold individual commits by clicking on non-link parts of the commit.
+// @description   Adds "unfold all changesets" buttons (hotkey: f) above/below Commit History pages at github, letting you browse the source changes without leaving the page. (Click a commit header again to re-fold it.) You can also fold or unfold individual commits by clicking on non-link parts of the commit. As a bonus, all tagged commits get their tags annotated in little bubbles on the right.
 // @include       https://github.com/*/commits*
 // @include       http://github.com/*/commits*
 // @match         https://github.com/*/commits*
@@ -263,13 +263,13 @@ function get_tags(cb, no_tags) {
 // annotates commits with their tags in little bubbles on the right side
 function inject_tag_markers() {
   function draw_tags(tags, repo) {
-    for (var tag in tags) {
+    Object.keys(tags).sort().forEach(function(tag) {
       var hash = tags[tag]
         , url  = repo +'/commit/'+ tag
         , $a   = $('pre > a[href$="'+ repo +'/commit/'+ hash +'"]');
       if ($a.length && !$a.parent().find('a.tag[href="'+ url +'"]').length)
         $a.before('<a class="tag" href="'+ url +'">'+ tag +'</a>');
-    }
+    });
   }
   get_tags(draw_tags);
 }
