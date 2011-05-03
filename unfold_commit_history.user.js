@@ -19,7 +19,8 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   { changed: true // Shows files changed, lines added / removed in folded mode
   }, at = '.commit.loading .machine a[hotkey="c"]',
     url = '/images/modules/browser/loading.gif',
-    all = '.envelope.commit .message a:not(.loaded):not([href*="#"])',
+  plain = ':not(.magic):not([href*="#"]):not([target])',
+    all = '.envelope.commit .message a:not(.loaded)'+ plain,
     css = // used for .toggleClass('folded'), for, optionally, hiding:
   '.file.folded > .data,\n' + // individual .commit .changeset .file:s
   '.file.folded > .image,\n' + // (...or their corresponding .image:s)
@@ -445,7 +446,7 @@ function toggle_commit_folding(e) {
     return; // clicked a link, or in the changeset; don't do fold action
 
   // .magic and *# links aren't github commit links (but stuff we added)
-  var $link = $('.message a:not([href*="#"]):not(.magic)', this);
+  var $link = $('.message a[href*="/commit/"]'+ plain, this);
   if ($link.hasClass('loaded'))
     $(this).toggleClass('folded');
   else
@@ -568,7 +569,7 @@ function inline_changeset(doneCallback) {
       if ((line2 = $('.message pre', whole).html().replace(line1, ''))) {
         $('.human .message pre', commit).append(
           $('<span class="full"></span>').html(line2)); // commit message
-        $('.human .message pre a:not([href*="#"])', commit).after(
+        $('.human .message pre a[href*="/commit/"].loaded'+plain, commit).after(
           '<span title="Message continues..." class="truncated"></span>');
       }
     } catch(e) {} // if this fails, fail silent -- no biggie
