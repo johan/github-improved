@@ -281,16 +281,18 @@ function inject_commit_names() {
     Object.keys(names).sort().forEach(function(name) {
       var hash = names[name]
         , url  = repo +'/commits/'+ name
+        , sel  = 'a.'+ type +'[href="'+ url +'"]'
         , $a   = $('.commit pre > a[href$="'+ repo +'/commit/'+ hash +'"]');
-      if ($a.length && !$a.parent().find('a.'+type+'[href="'+ url +'"]').length)
+      if (!$a.parent().find(sel).length) {
+        $(sel).remove(); // remove tag / branch from prior location (if any)
         $a.before('<a class="magic '+type+'" href="'+ url +'">'+ name +'</a>');
+      }
     });
   }
   function draw_tags(tags, repo) {
-    draw_names('tag', tags, repo); // assume tags are static over page lifetime
+    draw_names('tag', tags, repo);
   }
   function draw_branches(branches, repo) {
-    $('.commit pre > a.branch').remove(); // assume branches aren't necessarily
     draw_names('branch', branches, repo);
   }
   get_branches(draw_branches);
