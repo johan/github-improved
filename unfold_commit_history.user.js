@@ -62,6 +62,9 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   '.iso_times .date > .relatize.relatized { display: inline; }\n' +
   '.iso_times .date > .relatize { display: none; }\n' +
 
+  '.message .tag { background: #FE7; text-align: right; margin: 0 -5px .1em 0;'+
+  ' border-radius: 4px; padding: 0 2px; float: right; clear: both; }\n' +
+
   (!options.changed ? '' :
    '#commit .folded .machine { padding-bottom: 0; }\n' +
    '#commit .machine #toc .diffstat { border: 0; padding: 1px 0 0; }\n' +
@@ -70,6 +73,16 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
    '#commit .envelope.selected .machine #toc span { border-bottom: 0; }\n' +
    '#commit .machine #toc { float: right; width: 1px; margin: 0; border: 0; }');
 
+var on_page_change =
+[ prep_parent_links
+, inject_tag_markers
+];
+
+// Run first at init, and then once per (settled) page change, for later updates
+// caused by stuff like AutoPagerize.
+function onChange() {
+  on_page_change.forEach(function(cb, x) { cb(); });
+}
 
 // This block of code injects our source in the content scope and then calls the
 // passed callback there. The whole script runs in both GM and page content, but
@@ -98,8 +111,8 @@ function init() {
   $('head').append($('<style type="text/css"></style>').html(css));
   $('.commit').live('click', toggle_commit_folding);
 
-  prep_parent_links();
-  $(document).bind('DOMNodeInserted', when_settled(prep_parent_links), false);
+  onChange();
+  $(document).bind('DOMNodeInserted', when_settled(onChange), false);
   $('a[href][hotkey=p]')
     .live('mouseover', null, hilight_related)
     .live('mouseout', null,  unlight_related)
@@ -185,6 +198,80 @@ function toggle_author_commits(e) {
   if (hide.length) hide = '.'+ (array(hide).join(',.')) +' { display: none; }';
   else hide = '';
   $('#filtered_authors').html(hide);
+}
+
+// fetch some API resource by api
+function github_api(path, cb) {
+  function get() {
+    $.ajax(request);
+  }
+  var request =
+    { url: path
+    , success: cb
+    , dataType: 'json'
+    , beforeSend: function(xhr) {
+        var name = $('#header .avatarname .name').text()
+          , auth = btoa(name+'/token:'+ github_api.token);
+        xhr.setRequestHeader('Authorization', 'Basic '+ auth);
+      }
+    };
+  if (github_api.token)
+    get();
+  else
+    $.ajax({ url:'/account/admin'
+           , beforeSend: function(xhr) { xhr.withCredentials = true; }
+           , success: function(html) {
+               var got = html.match(/API token is <code>([^<]*)/);
+               if (got) {
+                 github_api.token = token = got[1];
+                 get();
+               }
+             }
+           });
+}
+
+// calls cb({ tag1: hash1, ... }, '/repo/name') after fetching the repo's tags,
+// of if none, no_tags('/repo/name')
+function get_tags(cb, no_tags) {
+  function got_tags(tags) {
+    // cache the repository's tags for later
+    var json = localStorage[path] = JSON.stringify(tags = tags.tags);
+    if (json.length > 2)
+      cb(tags, repo);
+    else
+      no_tags(repo);
+  }
+  var repo = location.pathname.match(/^(?:\/[^\/]+){2}/);
+  if (repo) repo = repo[0]; else return;
+
+  var path = 'tags' + repo
+    , tags = localStorage[path] && JSON.parse(localStorage[path])
+    , page = $('.subnav-bar li + li a.dropdown + ul > li').map(txt).get().sort()
+    , have = tags && Object.keys(tags).sort();
+
+  // assume the repo still has no tags if it didn't at the time the page loaded
+  if (page.length === 0)
+    no_tags(repo);
+  // assume the cache is still good if it's got the same tag number and names
+  else if (have.length === page.length &&
+           have.join() === page.join())
+    cb(tags, repo);
+  else // refresh the tags cache
+    github_api('/api/v2/json/repos/show'+ repo +'/tags', got_tags);
+}
+
+// annotates commits with their tags in little bubbles on the right side
+function inject_tag_markers() {
+  function draw_tags(tags, repo) {
+    for (var tag in tags) {
+      var hash = tags[tag]
+        , url  = repo +'/commit/'+ tag
+        , $a   = $('pre > a[href$="'+ repo +'/commit/'+ hash +'"]');
+      if ($a.length && !$a.parent().find('a.tag[href="'+ url +'"]').length)
+        $a.before('<a class="tag" href="'+ url +'">'+ tag +'</a>');
+    }
+  }
+  get_tags(draw_tags);
 }
 
 // make all commits get @id:s c_<hash>, and all parent links get @rel="<hash>"
@@ -378,6 +465,7 @@ var _slice = Array.prototype.slice;
 function array(ish) {
   return _slice.call(ish, 0);
 }
+function txt() { return this.textContent; }
 
 function n(x) {
   if (x > (1e9 - 5e7 - 1)) return Math.round(x / 1e9) +'G';
