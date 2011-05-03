@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          Github: unfold commit history
 // @namespace     http://github.com/johan/
-// @description   Adds "unfold all changesets" buttons (hotkey: f) above/below Commit History pages at github, letting you browse the source changes without leaving the page. (Click a commit header again to re-fold it.) You can also fold or unfold individual commits by clicking on non-link parts of the commit. As a bonus, all tagged commits get their tags annotated in little bubbles on the right.
+// @description   Adds "unfold all changesets" buttons (hotkey: f) above/below Commit History pages at github, letting you browse the source changes without leaving the page. (Click a commit header again to re-fold it.) You can also fold or unfold individual commits by clicking on non-link parts of the commit. As a bonus, all named commits get their tag/branch names annotated in little bubbles on the right.
 // @include       https://github.com/*/commits*
 // @include       http://github.com/*/commits*
 // @match         https://github.com/*/commits*
@@ -62,8 +62,10 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   '.iso_times .date > .relatize.relatized { display: inline; }\n' +
   '.iso_times .date > .relatize { display: none; }\n' +
 
-  '.message .tag { background: #FE7; text-align: right; margin: 0 -5px .1em 0;'+
-  ' border-radius: 4px; padding: 0 2px; float: right; clear: both; }\n' +
+  '.message .tag { background: #FE7; text-align: right; padding: 0 2px; ' +
+  ' margin: 0 -5px .1em 0; border-radius: 4px; float: right; clear: both; }\n' +
+  '.message .branch { background: #7EF; text-align: right; padding: 0 2px; ' +
+  ' margin: 0 -5px .1em 0; border-radius: 4px; float: right; clear: both; }\n' +
 
   (!options.changed ? '' :
    '#commit .folded .machine { padding-bottom: 0; }\n' +
@@ -75,7 +77,7 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
 
 var on_page_change =
 [ prep_parent_links
-, inject_tag_markers
+, inject_commit_names
 ];
 
 // Run first at init, and then once per (settled) page change, for later updates
@@ -233,44 +235,65 @@ function github_api(path, cb) {
 // calls cb({ tag1: hash1, ... }, '/repo/name') after fetching the repo's tags,
 // of if none, no_tags('/repo/name')
 function get_tags(cb, no_tags) {
-  function got_tags(tags) {
-    // cache the repository's tags for later
-    var json = localStorage[path] = JSON.stringify(tags = tags.tags);
+  get_named('tags', cb, no_tags);
+}
+
+// calls cb({ branch: hash1, ... }, '/repo/name') or, no_branches('/repo/name')
+// (just like get_tags)
+function get_branches(cb, no_branches) {
+  get_named('branches', cb, no_branches);
+}
+
+function get_named(what, cb, no_cb) {
+  function got_names(names) {
+    // cache the repository's tags/branches for later
+    var json = localStorage[path] = JSON.stringify(names = names[what]);
     if (json.length > 2)
-      cb(tags, repo);
+      cb(names, repo);
     else
-      no_tags(repo);
+      no_cb(repo);
   }
+  function get_name() { return this.textContent.replace(/ \u2713$/, ''); }
+
   var repo = location.pathname.match(/^(?:\/[^\/]+){2}/);
   if (repo) repo = repo[0]; else return;
 
-  var path = 'tags' + repo
-    , tags = localStorage[path] && JSON.parse(localStorage[path])
-    , page = $('.subnav-bar li + li a.dropdown + ul > li').map(txt).get().sort()
-    , have = tags && Object.keys(tags).sort();
+  var path = what + repo
+    , xxxs = localStorage[path] && JSON.parse(localStorage[path])
+    , _css = '.subnav-bar '+ (what === 'tags' ? 'li + li' : 'li:first-child')
+    , page = $(_css + ' a.dropdown + ul > li').map(get_name).get().sort()
+    , have = xxxs && Object.keys(xxxs).sort() || [];
 
-  // assume the repo still has no tags if it didn't at the time the page loaded
+  // assume the repo still has no names if it didn't at the time the page loaded
   if (page.length === 0)
-    no_tags(repo);
+    no_cb(repo);
   // assume the cache is still good if it's got the same tag number and names
   else if (have.length === page.length &&
            have.join() === page.join())
-    cb(tags, repo);
+    cb(xxxs, repo);
   else // refresh the tags cache
-    github_api('/api/v2/json/repos/show'+ repo +'/tags', got_tags);
+    github_api('/api/v2/json/repos/show'+ repo +'/'+ what, got_names);
 }
 
-// annotates commits with their tags in little bubbles on the right side
-function inject_tag_markers() {
-  function draw_tags(tags, repo) {
-    Object.keys(tags).sort().forEach(function(tag) {
-      var hash = tags[tag]
-        , url  = repo +'/commit/'+ tag
-        , $a   = $('pre > a[href$="'+ repo +'/commit/'+ hash +'"]');
-      if ($a.length && !$a.parent().find('a.tag[href="'+ url +'"]').length)
-        $a.before('<a class="tag" href="'+ url +'">'+ tag +'</a>');
+// annotates commits with tag/branch names in little bubbles on the right side
+function inject_commit_names() {
+  function draw_names(type, names, repo) {
+    Object.keys(names).sort().forEach(function(name) {
+      var hash = names[name]
+        , url  = repo +'/commits/'+ name
+        , $a   = $('.commit pre > a[href$="'+ repo +'/commit/'+ hash +'"]');
+      if ($a.length && !$a.parent().find('a.'+type+'[href="'+ url +'"]').length)
+        $a.before('<a class="magic '+type+'" href="'+ url +'">'+ name +'</a>');
     });
   }
+  function draw_tags(tags, repo) {
+    draw_names('tag', tags, repo); // assume tags are static over page lifetime
+  }
+  function draw_branches(branches, repo) {
+    $('.commit pre > a.branch').remove(); // assume branches aren't necessarily
+    draw_names('branch', branches, repo);
+  }
+  get_branches(draw_branches);
   get_tags(draw_tags);
 }
 
@@ -418,7 +441,8 @@ function toggle_commit_folding(e) {
       $(e.target).closest('a[href], .changeset, .gravatar').length)
     return; // clicked a link, or in the changeset; don't do fold action
 
-  var $link = $('.message a:not([href*="#"])', this);
+  // .magic and *# links aren't github commit links (but stuff we added)
+  var $link = $('.message a:not([href*="#"]):not(.magic)', this);
   if ($link.hasClass('loaded'))
     $(this).toggleClass('folded');
   else
@@ -465,7 +489,6 @@ var _slice = Array.prototype.slice;
 function array(ish) {
   return _slice.call(ish, 0);
 }
-function txt() { return this.textContent; }
 
 function n(x) {
   if (x > (1e9 - 5e7 - 1)) return Math.round(x / 1e9) +'G';
