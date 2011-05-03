@@ -19,7 +19,7 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   { changed: true // Shows files changed, lines added / removed in folded mode
   }, at = '.commit.loading .machine a[hotkey="c"]',
     url = '/images/modules/browser/loading.gif',
-  plain = ':not(.magic):not([href*="#"]):not([target])',
+  plain = ':not(.magic):not([href*="#"])',
     all = '.envelope.commit .message a:not(.loaded)'+ plain,
     css = // used for .toggleClass('folded'), for, optionally, hiding:
   '.file.folded > .data,\n' + // individual .commit .changeset .file:s
@@ -569,7 +569,7 @@ function inline_changeset(doneCallback) {
       if ((line2 = $('.message pre', whole).html().replace(line1, ''))) {
         $('.human .message pre', commit).append(
           $('<span class="full"></span>').html(line2)); // commit message
-        $('.human .message pre a[href*="/commit/"].loaded'+plain, commit).after(
+        $('.human .message pre a.loaded' + plain, commit).after(
           '<span title="Message continues..." class="truncated"></span>');
       }
     } catch(e) {} // if this fails, fail silent -- no biggie
