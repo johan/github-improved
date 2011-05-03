@@ -62,6 +62,7 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   '.iso_times .date > .relatize.relatized { display: inline; }\n' +
   '.iso_times .date > .relatize { display: none; }\n' +
 
+  '.magic.tag, .magic.branch { opacity: 0.75; }' +
   '.message .tag { background: #FE7; text-align: right; padding: 0 2px; ' +
   ' margin: 0 -5px .1em 0; border-radius: 4px; float: right; clear: both; }\n' +
   '.message .branch { background: #7EF; text-align: right; padding: 0 2px; ' +
