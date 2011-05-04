@@ -236,45 +236,69 @@ function github_api(path, cb) {
 
 // calls cb({ tag1: hash1, ... }, '/repo/name') after fetching the repo's tags,
 // of if none, no_tags('/repo/name')
-function get_tags(cb, no_tags) {
-  get_named('tags', cb, no_tags);
+function get_tags(cb, no_tags, refresh) {
+  return get_named('tags', cb, no_tags, refresh);
 }
 
 // calls cb({ branch: hash1, ... }, '/repo/name') or, no_branches('/repo/name')
 // (just like get_tags)
-function get_branches(cb, no_branches) {
-  get_named('branches', cb, no_branches);
+function get_branches(cb, no_branches, refresh) {
+  return get_named('branches', cb, no_branches, refresh);
 }
 
-function get_named(what, cb, no_cb) {
+function get_named(what, cb, no_cb, refresh) {
   function got_names(names) {
     // cache the repository's tags/branches for later
     var json = localStorage[path] = JSON.stringify(names = names[what]);
     if (json.length > 2)
       cb(names, repo);
     else
-      no_cb(repo);
+      no_cb && no_cb(repo);
   }
   function get_name() { return this.textContent.replace(/ \u2713$/, ''); }
 
   var repo = location.pathname.match(/^(?:\/[^\/]+){2}/);
-  if (repo) repo = repo[0]; else return;
+  if (repo) repo = repo[0]; else return false;
 
   var path = what + repo
     , xxxs = localStorage[path] && JSON.parse(localStorage[path])
     , _css = '.subnav-bar '+ (what === 'tags' ? 'li + li' : 'li:first-child')
-    , page = $(_css + ' a.dropdown + ul > li').map(get_name).get().sort()
-    , have = xxxs && Object.keys(xxxs).sort() || [];
+    , page = $(_css + ' a.dropdown + ul > li').map(get_name).get().sort() || []
+    , have = xxxs && Object.keys(xxxs).sort() || []
+    , at_b = 'branches' === what && get_current_branch();
+
+  // invalidate the branch cache if we're at the head of a branch, and its hash
+  // contradicts what we have saved
+  if (!xxxs || at_b && xxxs[at_b] !== get_first_commit_hash()) refresh = true;
+
+  // optimization - if there are no tags in the page, don't go fetch any
+  if ('tags' === what && !page.length) {
+    have = page;
+    xxxs = {};
+    refresh = false;
+  }
 
   // assume the repo still has no names if it didn't at the time the page loaded
   if (page.length === 0)
-    no_cb(repo);
+    no_cb && no_cb(repo);
   // assume the cache is still good if it's got the same tag number and names
-  else if (have.length === page.length &&
+  else if (!refresh &&
+           have.length === page.length &&
            have.join() === page.join())
     cb(xxxs, repo);
-  else // refresh the tags cache
+  else { // refresh the cache
     github_api('/api/v2/json/repos/show'+ repo +'/'+ what, got_names);
+    return true;
+  }
+  return false;
+}
+
+function get_current_branch() {
+  return $('.subnav-bar li:first-child ul li strong').text().slice(0, -2);
+}
+
+function get_first_commit_hash() {
+  return $('#commit .commit .machine a[hotkey="c"]')[0].pathname.slice(-40);
 }
 
 // annotates commits with tag/branch names in little bubbles on the right side
@@ -297,8 +321,9 @@ function inject_commit_names() {
   function draw_branches(branches, repo) {
     draw_names('branch', branches, repo);
   }
-  get_branches(draw_branches);
-  get_tags(draw_tags);
+  var refresh = get_branches(draw_branches);
+  // assume it's best to refresh tags too if any branches were moved
+  get_tags(draw_tags, null, refresh);
 }
 
 // make all commits get @id:s c_<hash>, and all parent links get @rel="<hash>"
