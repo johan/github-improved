@@ -1,1 +1,4 @@
 *.oex
+*.crx
+*.pem
+.DS_Store
