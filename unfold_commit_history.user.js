@@ -42,7 +42,7 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   '#commit .human .message pre { width: auto; }\n' + // don't wrap before EOL!
   '.folded .message .truncated:after { content: " (\u2026)"; }\n' +
 
-  '.compact_committers #commit .human .actor { width: 50%; float:left; }\n' +
+  '#commit .human .actor { width: 50%; float:left; }\n' +
   '.compact_committers #commit .human .actor:nth-of-type(odd) {' +
   ' text-align: right; clear: none; }\n' +
   '.compact_committers #commit .human .actor:nth-of-type(odd) .gravatar {' +
