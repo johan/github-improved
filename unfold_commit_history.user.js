@@ -363,8 +363,8 @@ function prep_parent_links() {
 }
 
 function unrelatize_dates() {
-  var ts = this.title, at = new Date(Date.parse(ts)), t = ts.split(' ')[1],
-      wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][at.getDay()];
+  var ts = this.title, at = new Date(ts.replace(/-/g,'/')), t = ts.split(' ')[1]
+    , wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][at.getDay()];
   $(this).before('<abbr class="iso" title="'+ ts +'">'+ wd +' '+ t +' </abbr>');
 }
 
