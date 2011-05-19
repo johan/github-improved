@@ -207,31 +207,50 @@ function toggle_author_commits(e) {
 // fetch some API resource by api
 function github_api(path, cb) {
   function get() {
-    $.ajax(request);
+    if (1 === enqueue().length)
+      $.ajax(request);
   }
-  var request =
+  function enqueue() {
+    var queue = github_api[path] = github_api[path] || [];
+    queue.push(cb); // always modify in place for dispatch
+    return queue;
+  }
+  function dispatch(queue, args) {
+    for (var i = 0, cb; cb = queue[i]; i++)
+      cb.apply(this, args || []);
+  }
+  var logged_in = github_api.token || $('#header a[href="/logout"]').length
+    , request =
     { url: path
-    , success: cb
+    , success: function done() {
+        dispatch(github_api[path], arguments);
+        delete   github_api[path];
+      }
     , dataType: 'json'
-    , beforeSend: function(xhr) {
+    , beforeSend: logged_in && function(xhr) {
         var name = $('#header .avatarname .name').text()
           , auth = btoa(name+'/token:'+ github_api.token);
         xhr.setRequestHeader('Authorization', 'Basic '+ auth);
       }
     };
-  if (github_api.token)
+  if (!logged_in || github_api.token)
     get();
-  else
-    $.ajax({ url:'/account/admin'
+  else if (github_api.pending_token)
+    github_api.pending_token.push(get);
+  else {
+    github_api.pending_token = [get];
+    $.ajax({ url: '/account/admin'
            , beforeSend: function(xhr) { xhr.withCredentials = true; }
            , success: function(html) {
                var got = html.match(/API token is <code>([^<]*)/);
                if (got) {
-                 github_api.token = token = got[1];
-                 get();
+                 github_api.token = got[1];
+                 dispatch(github_api.pending_token);
+                 delete   github_api.pending_token;
                }
              }
            });
+  }
 }
 
 // calls cb({ tag1: hash1, ... }, '/repo/name') after fetching the repo's tags,
