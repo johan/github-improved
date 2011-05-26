@@ -69,6 +69,8 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   '.message .branch { background: #7EF; text-align: right; padding: 0 2px; ' +
   ' margin: 0 -5px .1em 0; border-radius: 4px; float: right; clear: both; }\n' +
 
+  '.magic.tag.diff { clear: left; margin-right: 0.25em; }\n' + // &Delta; marker
+
   (!options.changed ? '' :
    '#commit .folded .machine { padding-bottom: 0; }\n' +
    '#commit .machine #toc .diffstat { border: 0; padding: 1px 0 0; }\n' +
@@ -323,14 +325,33 @@ function get_first_commit_hash() {
 // annotates commits with tag/branch names in little bubbles on the right side
 function inject_commit_names() {
   function draw_names(type, names, repo) {
-    Object.keys(names).sort().forEach(function(name) {
+    var all_names = Object.keys(names)
+      , kin_cache = {}; // kin_re => [all names matching kin_re]
+    all_names.sort().forEach(function(name) {
       var hash = names[name]
         , url  = repo +'/commits/'+ name
         , sel  = 'a.'+ type +'[href="'+ url +'"]'
         , $a   = $('.commit pre > a[href$="'+ repo +'/commit/'+ hash +'"]');
-      if (!$a.parent().find(sel).length) {
+      if (!$a.parent().find(sel).length) { // does the commit exist in the page?
         $(sel).remove(); // remove tag / branch from prior location (if any)
         $a.before('<a class="magic '+type+'" href="'+ url +'">'+ name +'</a>');
+
+        // if we just linked a tag, also link a tag changeset, if applicable:
+        if (type !== 'tag') return;
+        var kin_re   = quote_re(name).replace(/\d+/g, '\\d+')
+          , similar  = new RegExp(kin_re)
+          , kin_tags = kin_cache[similar] = kin_cache[similar] ||
+                     ( all_names
+                         .filter(function(tag) { return similar.test(tag); })
+                         .sort(dwim_sort_func)
+                     )
+          , this_idx = kin_tags.indexOf(name)
+          , last_tag = this_idx && kin_tags[this_idx - 1];
+        if (last_tag)
+          $a.before( '<a class="magic tag diff" title="Changes since '+ last_tag
+                   + '" href="'+ repo +'/compare/'+ last_tag +'...'+ name +'">'
+                   + '&Delta;</a>'
+                   );
       }
     });
   }
@@ -343,6 +364,40 @@ function inject_commit_names() {
   var refresh = get_branches(draw_branches);
   // assume it's best to refresh tags too if any branches were moved
   get_tags(draw_tags, null, refresh);
+}
+
+function quote_re( re ) {
+  return re.replace( /([.*+^$?(){}|\x5B-\x5D])/g, "\\$1" ); // 5B-5D == [\]
+}
+
+// example usage: ['0.10', '0.9'].sort(dwim_sort_func) comes out ['0.9', '0.10']
+function dwim_sort_func(a, b) {
+  if (a === b) return 0;
+  var int_str_rest_re = /^(\d*)(\D*)(.*)/
+    , A = int_str_rest_re.exec(a), a_int, a_str, a_int_len = A[1].length
+    , B = int_str_rest_re.exec(b), b_int, b_str, b_int_len = B[1].length
+    ;
+  if (!a_int_len ^ !b_int_len) return a_int_len ? -1 : 1;
+  do {
+    if ((a_int = A[1]) !==
+        (b_int = B[1])) {
+      if ((a_int = parseInt(a_int, 10)) !==
+          (b_int = parseInt(b_int, 10)))
+        return a_int < b_int ? -1 : 1;
+    }
+
+    if ((a_str = A[2]) !==
+        (b_str = B[2]))
+      return a_str < b_str ? -1 : 1;
+
+    a = A[3];
+    b = B[3];
+    if (!a.length) return b.length ? -1 : 0;
+    if (!b.length) return a.length ? 1 : 0;
+
+    A = int_str_rest_re.exec(a);
+    B = int_str_rest_re.exec(b);
+  } while (true);
 }
 
 // make all commits get @id:s c_<hash>, and all parent links get @rel="<hash>"
