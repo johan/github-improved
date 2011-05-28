@@ -6,6 +6,8 @@
 // @include       http://github.com/*/commit*
 // ==/UserScript==
 
+(function() {
+
 // This block of code injects our source in the content scope and then calls the
 // passed callback there. The whole script runs in both GM and page content, but
 // since we have no other code that does anything, the Greasemonkey sandbox does
@@ -1239,5 +1241,7 @@ Diff.prototype.diff_prettyHtml = function(diffs) {
 
 
 return new Diff;
+
+})();
 
 })();
