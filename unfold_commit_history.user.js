@@ -144,9 +144,9 @@ function init() {
   window.download_all            = download_all;
   location.href = 'javascript:$.hotkeys(' +
     '{ f: toggle_selected_folding' +
-    ', F: toggle_all_folding' +
+  //', F: toggle_all_folding' +
     ', d: download_selected' +
-    ', D: download_all' +
+  //', D: download_all' +
     '});' + // adds our own hotkeys
     'delete GitHub.Commits.elements;' + // makes j / k span demand-loaded pages
     'GitHub.Commits.__defineGetter__("elements",' +
