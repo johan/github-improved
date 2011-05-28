@@ -6,6 +6,7 @@
 // @include       http://github.com/*/commits*
 // @match         https://github.com/*/commits*
 // @match         http://github.com/*/commits*
+// @version       1.7
 // ==/UserScript==
 
 (function exit_sandbox() { // see end of file for unsandboxing code
