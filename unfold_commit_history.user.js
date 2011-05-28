@@ -8,6 +8,8 @@
 // @match         http://github.com/*/commits*
 // ==/UserScript==
 
+(function exit_sandbox() { // see end of file for unsandboxing code
+
 var toggle_options = // flip switches you configure by clicking in the UI here:
   { compact_committers: '#commit .human .actor .name span:contains("committer")'
   , chain_adjacent_connected_commits: '#commit > .separator > h2'
@@ -89,27 +91,6 @@ var on_page_change =
 function onChange() {
   on_page_change.forEach(function(cb, x) { cb(); });
 }
-
-// This block of code injects our source in the content scope and then calls the
-// passed callback there. The whole script runs in both GM and page content, but
-// since we have no other code that does anything, the Greasemonkey sandbox does
-// nothing at all when it has spawned the page script, which gets to use jQuery.
-// (jQuery unfortunately degrades much when run in Mozilla's javascript sandbox)
-if ('object' === typeof opera && opera.extension) {
-  this.__proto__ = window; // bleed the web page's js into our execution scope
-  document.addEventListener('DOMContentLoaded', init, false); // GM-style init
-} else (function(run_me_in_page_scope) { // for Chrome or Firefox+Greasemonkey
-  if ('undefined' == typeof __UNFOLD_IN_PAGE_SCOPE__) { // unsandbox, please!
-    var src = arguments.callee.caller.toString(),
-     script = document.createElement('script');
-    script.setAttribute("type", "application/javascript");
-    script.innerHTML = "const __UNFOLD_IN_PAGE_SCOPE__ = true;\n("+ src +')();';
-    document.documentElement.appendChild(script);
-    document.documentElement.removeChild(script);
-  } else { // unsandboxed -- here we go!
-    run_me_in_page_scope();
-  }
-})(init);
 
 function init() {
   $('body').addClass('all_folded') // preload the loading throbber, so it shows
@@ -800,3 +781,29 @@ function github_comment(c) {
   c.find(".relatize").relatizeDate();
   c.editableComment();
 }
+
+
+
+// This block of code injects our source in the content scope and then calls the
+// passed callback there. The whole script runs in both GM and page content, but
+// since we have no other code that does anything, the Greasemonkey sandbox does
+// nothing at all when it has spawned the page script, which gets to use jQuery.
+// (jQuery unfortunately degrades much when run in Mozilla's javascript sandbox)
+if ('object' === typeof opera && opera.extension) {
+  this.__proto__ = window; // bleed the web page's js into our execution scope
+  document.addEventListener('DOMContentLoaded', init, false); // GM-style init
+}
+else { // for Chrome or Firefox+Greasemonkey
+  if ('undefined' == typeof __UNFOLD_IN_PAGE_SCOPE__) { // unsandbox, please!
+    var src = exit_sandbox + '',
+     script = document.createElement('script');
+    script.setAttribute('type', 'application/javascript');
+    script.innerHTML = 'const __UNFOLD_IN_PAGE_SCOPE__ = true;\n('+ src +')();';
+    document.documentElement.appendChild(script);
+    document.documentElement.removeChild(script);
+  } else { // unsandboxed -- here we go!
+    init();
+  }
+}
+
+})();
