@@ -33,10 +33,10 @@ file 'github-improved.zip' => FileList["chrome/*",'unfold_*.user.js'] do |t|
   cp_r 'chrome', 'build/chrome'
   cp 'unfold_commit_history.user.js', 'build/chrome/'
   #build_zip t.name, 'build/chrome', 'chrome.pem'
-  cp 'chrome.pem', 'build/chrome'
-  cd 'build/chrome' do
-    rm_f '.DS_Store'
-    sh "zip -qrmD9 ../../github-improved.zip *"
+  cp 'chrome.pem', 'build/chrome/key.pem'
+  cd 'build' do
+    rm_f 'chrome/.DS_Store'
+    sh "zip -qrD9 ../github-improved.zip chrome"
   end
 end
 
