@@ -37,6 +37,10 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   '#commit .selected.loading .machine > span:nth-child(1) { border: none; }\n' +
   '#commit .machine { padding-left: 14px; padding-bottom: 0; }\n' +
 
+  // The site has a .site { width: 920px } but #commit .human { width: 50em; },
+  // which looks bad in Opera, where it becomes about 650px only. Address this:
+  '#commit .human { width: 667px; }\n' +
+
   '.fold_unfold, .download_all { float: right; }\n' +
   '.all_folded .fold_unfold:before { content: "\xAB un"; }\n' +
   '.all_folded .fold_unfold:after { content: " \xBB"; }\n' +
