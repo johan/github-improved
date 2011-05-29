@@ -85,7 +85,11 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
 var on_page_change =
 [ prep_parent_links
 , inject_commit_names
-];
+], keys = Object.keys || function _keys(o) {
+  var r = [], k;
+  for (k in o) if (o.hasOwnProperty(k)) r.push(k);
+  return r;
+};
 
 // Run first at init, and then once per (settled) page change, for later updates
 // caused by stuff like AutoPagerize.
@@ -252,7 +256,7 @@ function get_branches(cb, no_branches, refresh) {
 function get_named(what, cb, no_cb, refresh) {
   function got_names(names) {
     // cache the repository's tags/branches for later
-    var json = localStorage[path] = JSON.stringify(names = names[what]);
+    var json = window.localStorage[path] = JSON.stringify(names = names[what]);
     if (json.length > 2)
       cb(names, repo);
     else
@@ -260,14 +264,14 @@ function get_named(what, cb, no_cb, refresh) {
   }
   function get_name() { return this.textContent.replace(/ \u2713$/, ''); }
 
-  var repo = location.pathname.match(/^(?:\/[^\/]+){2}/);
+  var repo = window.location.pathname.match(/^(?:\/[^\/]+){2}/);
   if (repo) repo = repo[0]; else return false;
 
   var path = what + repo
-    , xxxs = localStorage[path] && JSON.parse(localStorage[path])
+    , xxxs = window.localStorage[path] && JSON.parse(window.localStorage[path])
     , _css = '.subnav-bar '+ (what === 'tags' ? 'li + li' : 'li:first-child')
     , page = $(_css + ' a.dropdown + ul > li').map(get_name).get().sort() || []
-    , have = xxxs && Object.keys(xxxs).sort() || []
+    , have = xxxs && keys(xxxs).sort() || []
     , at_b = 'branches' === what && get_current_branch();
 
   // invalidate the branch cache if we're at the head of a branch, and its hash
@@ -307,7 +311,7 @@ function get_first_commit_hash() {
 // annotates commits with tag/branch names in little bubbles on the right side
 function inject_commit_names() {
   function draw_names(type, names, repo) {
-    var all_names = Object.keys(names)
+    var all_names = keys(names)
       , kin_cache = {}; // kin_re => [all names matching kin_re]
     all_names.sort().forEach(function(name) {
       var hash = names[name]
