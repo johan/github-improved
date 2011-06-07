@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" version="1.7">
+<widget xmlns="http://www.w3.org/ns/widgets" version="1.8">
   <name>Github improved</name>
   <icon src="icon.png"/>
   <author href="http://ecmanaut.blogspot.com/" email="oyasumi+github-improved@gmail.com">Johan Sundström</author>

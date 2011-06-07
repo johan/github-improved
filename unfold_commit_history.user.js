@@ -6,7 +6,7 @@
 // @include       http://github.com/*/commits*
 // @match         https://github.com/*/commits*
 // @match         http://github.com/*/commits*
-// @version       1.7
+// @version       1.8
 // ==/UserScript==
 
 (function exit_sandbox() { // see end of file for unsandboxing code
@@ -23,7 +23,7 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   }, at = '.commit.loading .machine a[hotkey="c"]',
     url = '/images/modules/browser/loading.gif',
   plain = ':not(.magic):not([href*="#"])',
-    all = '.envelope.commit .message a:not(.loaded)'+ plain,
+    all = '.envelope.commit .message a[href^="/"]:not(.loaded)'+ plain,
     css = // used for .toggleClass('folded'), for, optionally, hiding:
   '.file.folded > .data,\n' + // individual .commit .changeset .file:s
   '.file.folded > .image,\n' + // (...or their corresponding .image:s)
