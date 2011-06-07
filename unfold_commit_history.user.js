@@ -658,7 +658,7 @@ function inline_changeset(doneCallback) {
       if ((line2 = $('.message pre', whole).html().replace(line1, ''))) {
         $('.human .message pre', commit).append(
           $('<span class="full"></span>').html(line2)); // commit message
-        $('.human .message pre a.loaded' + plain, commit).after(
+        $('.human .message pre a.loaded:last-child' + plain, commit).after(
           '<span title="Message continues..." class="truncated"></span>');
       }
     } catch(e) {} // if this fails, fail silent -- no biggie
