@@ -23,6 +23,7 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   }, at = '.commit.loading .machine a[hotkey="c"]',
     url = '/images/modules/browser/loading.gif',
   plain = ':not(.magic):not([href*="#"])',
+  // all changeset links in the message context of their own changeset
     all = '.envelope.commit .message a[href^="/"]:not(.loaded)'+ plain,
     css = // used for .toggleClass('folded'), for, optionally, hiding:
   '.file.folded > .data,\n' + // individual .commit .changeset .file:s
@@ -535,7 +536,7 @@ function toggle_commit_folding(e) {
     return; // clicked a link, or in the changeset; don't do fold action
 
   // .magic and *# links aren't github commit links (but stuff we added)
-  var $link = $('.message a[href*="/commit/"]'+ plain, this);
+  var $link = $('.message a[href^="/"][href*="/commit/"]'+ plain, this);
   if ($link.hasClass('loaded'))
     $(this).toggleClass('folded');
   else
