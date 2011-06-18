@@ -6,7 +6,7 @@
 // @include       http://github.com/*/commits*
 // @match         https://github.com/*/commits*
 // @match         http://github.com/*/commits*
-// @version       1.8
+// @version       1.8.2
 // ==/UserScript==
 
 (function exit_sandbox() { // see end of file for unsandboxing code
@@ -14,7 +14,7 @@
 var toggle_options = // flip switches you configure by clicking in the UI here:
   { compact_committers: '#commit .human .actor .name span:contains("committer")'
   , chain_adjacent_connected_commits: '#commit > .separator > h2'
-  , iso_times: '#commit .human .actor .date > abbr'
+  , iso_times: '#commit .human .actor .date'
   , author_filter: '.commit .human .actor:nth-child(2) .gravatar > img'
   }, toggle =
   { author_filter: function(on) { $('#filtered_authors').attr('disabled',!on); }
@@ -56,20 +56,15 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   '.compact_committers #commit .human .actor:nth-of-type(odd) .gravatar {' +
   ' float: right; margin: 0 0 0 0.7em; }\n' +
 
+  // for unrelatize_dates()
   'body:not(.iso_times) .date > .iso { display: none; }\n' +
-  '.iso_times .date > .relatize.relatized:before { content: "("; }\n' +
-  '.iso_times .date > .relatize.relatized:after { content: ")"; }\n' +
-  '.iso_times .date > .relatize.relatized { display: inline; }\n' +
-  '.iso_times .date > .relatize { display: none; }\n' +
+  '.iso_times .date > time:before { content: "("; }\n' +
+  '.iso_times .date > time:after { content: ")"; }\n' +
 
   'body:not(.author_filter) #author_filter { display: none; }\n' +
   '#author_filter img.filtered { opacity: 0.5; }' +
   '#author_filter img { margin: 0 .3em 0 0; background-color: white; '+
   ' padding: 2px; border: 1px solid #D0D0D0; }' +
-
-  '.iso_times .date > .relatize.relatized:after { content: ")"; }\n' +
-  '.iso_times .date > .relatize.relatized { display: inline; }\n' +
-  '.iso_times .date > .relatize { display: none; }\n' +
 
   '.magic.tag, .magic.branch { opacity: 0.75; }' +
   '.message .tag { background: #FE7; text-align: right; padding: 0 2px; ' +
@@ -405,9 +400,13 @@ function prep_parent_links() {
     ci.attr('id', 'c_' + id);
   });
 
-  $('.date > abbr.relatize:first-child').each(unrelatize_dates);
+  // print proper time stamps for .iso_times mode:
+  $('.date > time:first-child').each(unrelatize_dates);
 }
 
+// Where github has <time>five seconds ago</time>, in .iso_times mode upgrade to
+// "Sat 14:58:30 (five seconds ago)" instead, for those of us scanning the page
+// for what weekday / time of day something happened at without doing time math.
 function unrelatize_dates() {
   var ts = this.title, at = new Date(ts.replace(/-/g,'/')), t = ts.split(' ')[1]
     , wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][at.getDay()];
