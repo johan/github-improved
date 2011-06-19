@@ -6,7 +6,7 @@
 // @include       http://github.com/*/commits*
 // @match         https://github.com/*/commits*
 // @match         http://github.com/*/commits*
-// @version       1.8.4.1
+// @version       1.8.5
 // ==/UserScript==
 
 (function exit_sandbox() { // see end of file for unsandboxing code
@@ -27,6 +27,65 @@ var features =
       , '.compact_committers #commit .human .actor:nth-of-type(odd) .gravatar {'
         + ' float: right; margin: 0 0 0 0.7em; }' // committer icon
       ]
+    }
+
+  // Problem: it's impossible to tell which commits are tiny and which are huge
+  //
+  // So let's show a little diff line on the right once we have the data loaded
+  // which shows how many lines were added/removed, and across how many files.
+  , change_counts_for_folded_commits_too:
+    { always_enabled: true
+    , css:
+      [ '#commit .folded .machine { padding-bottom: 0; }'
+      , '#commit .machine #toc .diffstat { border: 0; padding: 1px 0 0; }'
+      , '#commit .machine #toc .diffstat-bar { opacity: 0.75; }'
+      , '#commit .machine #toc .diffstat-summary { font-weight: normal; }'
+      , '#commit .envelope.selected .machine #toc span { border-bottom: 0; }'
+      , '#commit .machine #toc {'
+        + ' float: right; width: 1px; margin: 0; border: 0; }'
+      ]
+    , show_diff: function called_from_inline_changeset(commit) {
+        function count() {
+          ++FILES;
+          var lines = /(\d+) additions? & (\d+) deletion/.exec(this.title||'');
+          if (lines) {
+            ADD += Number(lines[1]); // lines added
+            DEL += Number(lines[2]); // lines deleted
+          }
+        }
+
+        var $m = $('.machine', commit)
+          , already_changed = $m.find('#toc').length;
+        if (already_changed) return;
+
+        var ADD = 0, DEL = 0, FILES = 0, BLOBS = 5, $a = $m.append('diff' +
+            '<table id="toc"><tbody><tr><td class="diffstat">' +
+              '<a class="tooltipped leftwards"></a>' +
+            '</td></tr></tbody></table>').find('#toc a');
+
+        // count added / removed lines and number of files changed
+        $('.changeset #toc .diffstat a[title]', commit).each(count);
+
+        var text = '<b>+'+ n(ADD) +'</b> / '
+                 + '<b>-'+ n(DEL) +'</b> in '
+                 + '<b>' + n(FILES) +'</b>'
+          , stat = '<span class="diffstat-summary">'+ text +'</span>\n'
+          , plus = Math.round(ADD / (ADD + DEL) * BLOBS)
+          , bar  = '<span class="diffstat-bar">';
+
+        // don't show more blobs than total lines,
+        if (ADD + DEL < BLOBS) { plus = ADD; BLOBS = ADD + DEL; }
+        // and show ties as an even number of blobs
+        else if (ADD === DEL) { --plus; --BLOBS; }
+
+        for (var i = 0; i < BLOBS; i++)
+          bar += '<span class="'+ (i < plus ? 'plus' : 'minus') +
+                 '">\u2022</span>';
+        bar += '</span>';
+
+        $a.html(stat + bar).attr('title', ADD +' additions & '+ DEL +
+                                 ' deletions in '+ pluralize('file', FILES));
+      }
     }
 
   // Problem: I can't see where commit history is linear and where it's disjoint
@@ -190,17 +249,8 @@ var  at = '.commit.loading .machine a[hotkey="c"]',
   '.message .branch { background: #7EF; text-align: right; padding: 0 2px; ' +
   ' margin: 0 -5px .1em 0; border-radius: 4px; float: right; clear: both; }\n' +
 
-  '.magic.tag.diff { clear: left; margin-right: 0.25em; }\n' + // &Delta; marker
-
-  // FIXME: these could become a by-default-on? config flag to toggle "changed"
-  //        markers (in folded mode) after page decoration. ["options.changed"]
-  //        They show files changed, lines added / removed in folded mode:
-   '#commit .folded .machine { padding-bottom: 0; }\n' +
-   '#commit .machine #toc .diffstat { border: 0; padding: 1px 0 0; }\n' +
-   '#commit .machine #toc .diffstat-bar { opacity: 0.75; }\n' +
-   '#commit .machine #toc .diffstat-summary { font-weight: normal; }\n'+
-   '#commit .envelope.selected .machine #toc span { border-bottom: 0; }\n' +
-   '#commit .machine #toc { float: right; width: 1px; margin: 0; border: 0; }';
+  '.magic.tag.diff { clear: left; margin-right: 0.25em; }\n' // &Delta; marker
+;
 
 var keys = Object.keys || function _keys(o) {
   var r = [], k;
@@ -545,7 +595,8 @@ function show_docs(x) {
 function init_config() {
   for (var name in features) {
     var feature = features[name]
-      , enabled = feature.enabled = !!window.localStorage.getItem(name);
+      , enabled = feature.enabled =
+                  feature.always_enabled || !!window.localStorage.getItem(name);
     if (enabled) $('body').addClass(name);
 
     if (feature.toggle_selector)
@@ -707,45 +758,14 @@ function inline_changeset(doneCallback) {
       .find('.actions').attr('title', ' '); // but don't over-report that title
   }
 
-  function show_changed() {
-    var $m = $('.machine', commit), alreadyChanged = $m.find('#toc').length;
-    if (alreadyChanged) return;
-    var F = 0, A = 0, D = 0, $a = $m.append('diff' +
-        '<table id="toc"><tbody><tr><td class="diffstat">' +
-          '<a class="tooltipped leftwards"></a>' +
-        '</td></tr></tbody></table>').find('#toc a');
-
-    // count added / removed lines and number of files changed
-    $('.changeset #toc .diffstat a[title]', commit).each(function count() {
-      ++F; // files touched
-      var lines = /(\d+) additions? & (\d+) deletion/.exec(this.title || '');
-      if (lines) {
-        A += Number(lines[1]); // lines added
-        D += Number(lines[2]); // lines deleted
-      }
-    });
-
-    var text = '<b>+'+ n(A) +'</b> / <b>-'+ n(D) +'</b> in <b>'+ n(F) +'</b>',
-        stat = '<span class="diffstat-summary">'+ text +'</span>\n', i, N = 5,
-        plus = Math.round(A / (A + D) * N), bar = '<span class="diffstat-bar">';
-    // don't show more blobs than total lines, and show ties as even # of blobs
-    if (A + D < N) { plus = A; N = A + D; } else if (A === D) { --plus; --N; }
-    for (i = 0; i < N; i++)
-      bar += '<span class="'+ (i < plus ? 'plus' : 'minus') +'">\u2022</span>';
-    bar += '</span>';
-
-    $a.html(stat + bar).attr('title', A +' additions & '+ D +' deletions in '+
-                             pluralize('file', F));
-  }
-
   // find all diff links and fix them, annotate how many files were changed, and
   // insert line 2.. of the commit message in the unfolded view of the changeset
   function post_process() {
     github_inlined_comments(this);
 
-    var files = changeset.find('[id^="diff-"]').each(fix_link), line2;
-
-    /*if (options.changed)*/ show_changed(); // FIXME: options.changed, cont:d
+    var files = changeset.find('[id^="diff-"]').each(fix_link), line2
+      , diffs = features.change_counts_for_folded_commits_too;
+    if (diffs.enabled) diffs.show_diff(commit);
 
     // now, add lines 2.. of the commit message to the unfolded changeset view
     var whole = $('#commit', changeset); // contains the whole commit message
