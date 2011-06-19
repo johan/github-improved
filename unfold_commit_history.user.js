@@ -140,7 +140,8 @@ var features =
     }
   }
 
-, DEV_MODE = console.warn && window.localStorage.getItem('github_improved_dev')
+, DEV_MODE = 'undefined' !== typeof console && console.warn &&
+             window.localStorage.getItem('github_improved_dev')
 , ENTER = !DEV_MODE ? function(){}
   : function ENTER(id) {
       (ENTER[id] = ENTER[id] || []).push(+new Date);
