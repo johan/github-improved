@@ -6,23 +6,101 @@
 // @include       http://github.com/*/commits*
 // @match         https://github.com/*/commits*
 // @match         http://github.com/*/commits*
-// @version       1.8.2
+// @version       1.8.3
 // ==/UserScript==
 
 (function exit_sandbox() { // see end of file for unsandboxing code
 
-var toggle_options = // flip switches you configure by clicking in the UI here:
-  { compact_committers: '#commit .human .actor .name span:contains("committer")'
-  , chain_adjacent_connected_commits: '#commit > .separator > h2'
-  , iso_times: '#commit .human .actor .date'
-  , author_filter: '.commit .human .actor:nth-child(2) .gravatar > img'
-  }, toggle =
-  { author_filter: function(on) { $('#filtered_authors').attr('disabled',!on); }
-  }, options = // other options you have to edit this file for:
-  { changed: true // Shows files changed, lines added / removed in folded mode
-  }, at = '.commit.loading .machine a[hotkey="c"]',
+// FIXME: enabled_css + disabled_css + github_css?
+var features =
+  // Problem: where committer != author is the norm, you can't scan for either!
+  //
+  // So instead of aligning both left (and below each other) divide the page in
+  // the middle -- ALWAYS showing authors on the left / committers on the right.
+  { compact_committers:
+    // the text "(committer)" is the hot spot to toggle this feature on and off:
+    { toggle_selector: '#commit .human .actor .name span:contains("committer")'
+    , css:
+      [ '#commit .human .actor { width: 50%; float: left; }' // overrides github
+      , '.compact_committers #commit .human .actor:nth-of-type(odd) {'
+        + ' text-align: right; clear: none; }' // committer name
+      , '.compact_committers #commit .human .actor:nth-of-type(odd) .gravatar {'
+        + ' float: right; margin: 0 0 0 0.7em; }' // committer icon
+      ]
+    }
+
+  // Problem: I can't see where commit history is linear and where it's disjoint
+  //
+  // When enabling this mode, a linear history (one where adjacent commits MEAN
+  // that the commit above is the direct, single parent of the commit below it)
+  // shows up WITHOUT the little dark blue separator between them and non-linar
+  // history (two commits where the adjacency is just incidental) keep the bar.
+  , chain_adjacent_connected_commits:
+    { toggle_selector: '#commit > .separator > h2' // a date header (bad choice)
+    , css:
+      [ '.chain_adjacent_connected_commits '
+        + '#commit .adjacent.commit:not(.selected):not(:last-child) {'
+        + ' border-bottom-color: transparent; }'
+      ]
+    }
+
+  // Problem: I can't scan commit history for commits by weekday or time of day
+  //
+  // Where github has <time title="2011-06-18 15:10:54">33 minutes ago</time>,
+  // iso_times will upgrade to add a prefix like <abbr>Sat 14:58:30</abbr> and
+  // surround the "33 minutes ago" in parentheses. This lets you visually scan
+  // the page for commits by weekday or time of day without getting frustrated.
+  , iso_times:
+    { toggle_selector: '#commit .human .actor .date' // a commit timestamp
+    , css:
+      [ 'body:not(.iso_times) .date > .iso { display: none; }'
+      , '.iso_times .date > time:before { content: "("; }'
+      , '.iso_times .date > time:after { content: ")"; }'
+      ]
+    , on_page_change: function() {
+        function prepend_absolute_wday_times() {
+          var iso  = this.title
+            , time = iso.split(' ')[1]
+            , date = new Date(iso.replace(/-/g, '/'))
+            , week = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+            , day  = week[date.getDay()];
+          $(this).before('<abbr class="iso" title="'+ iso +'">'+
+                         day +' '+ time +' </abbr>');
+        }
+        $('.date > time:first-child').each(prepend_absolute_wday_times);
+      }
+    }
+
+  // Problem: I want to narrow the view to commits authored by (or not by) X/Y/Z
+  // Problem: I want to see what proportion of commits were authored by X/Y/Z
+  //
+  // This adds a little panel on top (between "Commit History" and the commits),
+  // listing icons for all authors that have one commit or more in the page, and
+  // also sizes them (the white bar becomes one pixel wider per commit shown) by
+  // how many commits they contributed. Click any author to toggle visibility of
+  // all their commits on and off. When hidden, that author is grayed out. Click
+  // a commit author icon again to hide the panel, and show commits by everyone.
+  , author_filter:
+    // The author icon of a commit in the page
+    { toggle_selector: '.commit .human .actor:nth-child(2) .gravatar > img'
+    , toggle_callback: function(on) {
+        $('#filtered_authors').attr('disabled', !on);
+      }
+    , css:
+      [ 'body:not(.author_filter) #author_filter { display: none; }'
+      , '#author_filter img.filtered { opacity: 0.5; }'
+      , '#author_filter img {'
+        + ' margin: 0 .3em 0 0; background-color: white; '
+        + ' padding: 2px; border: 1px solid #D0D0D0; }'
+      ]
+    // FIXME: hook in all the author filter code here, too
+    }
+  };
+
+var  at = '.commit.loading .machine a[hotkey="c"]',
     url = '/images/modules/browser/loading.gif',
   plain = ':not(.magic):not([href*="#"])',
+
   // all changeset links in the message context of their own changeset
     all = '.envelope.commit .message a[href^="/"]:not(.loaded)'+ plain,
     css = // used for .toggleClass('folded'), for, optionally, hiding:
@@ -31,8 +109,6 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   '.commit.folded .changeset,\n' + // whole .commit:s' diffs,
   '.commit.folded .message .full' + // + full checkin message
   ' { display: none; }\n' +
-  '.chain_adjacent_connected_commits #commit .adjacent.commit:not(.selected)' +
-  ':not(:last-child) { border-bottom-color: transparent; }\n' +
   at +':before\n { content: url("'+ url +'"); }\n'+  // show "loading" throbber
   at +'\n { position: absolute; margin: 1px 0 0 -70px; height: 14px; }\n' +
   '#commit .selected.loading .machine > span:nth-child(1) { border: none; }\n' +
@@ -42,6 +118,7 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   // which looks bad in Opera, where it becomes about 650px only. Address this:
   '#commit .human { width: 667px; }\n' +
 
+  // fold / unfold behaviour
   '.fold_unfold, .download_all { float: right; }\n' +
   '.all_folded .fold_unfold:before { content: "\xAB un"; }\n' +
   '.all_folded .fold_unfold:after { content: " \xBB"; }\n' +
@@ -50,22 +127,7 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
   '#commit .human .message pre { width: auto; }\n' + // don't wrap before EOL!
   '.folded .message .truncated:after { content: " (\u2026)"; }\n' +
 
-  '#commit .human .actor { width: 50%; float:left; }\n' +
-  '.compact_committers #commit .human .actor:nth-of-type(odd) {' +
-  ' text-align: right; clear: none; }\n' +
-  '.compact_committers #commit .human .actor:nth-of-type(odd) .gravatar {' +
-  ' float: right; margin: 0 0 0 0.7em; }\n' +
-
-  // for unrelatize_dates()
-  'body:not(.iso_times) .date > .iso { display: none; }\n' +
-  '.iso_times .date > time:before { content: "("; }\n' +
-  '.iso_times .date > time:after { content: ")"; }\n' +
-
-  'body:not(.author_filter) #author_filter { display: none; }\n' +
-  '#author_filter img.filtered { opacity: 0.5; }' +
-  '#author_filter img { margin: 0 .3em 0 0; background-color: white; '+
-  ' padding: 2px; border: 1px solid #D0D0D0; }' +
-
+  // tag and branch labels:
   '.magic.tag, .magic.branch { opacity: 0.75; }' +
   '.message .tag { background: #FE7; text-align: right; padding: 0 2px; ' +
   ' margin: 0 -5px .1em 0; border-radius: 4px; float: right; clear: both; }\n' +
@@ -74,18 +136,17 @@ var toggle_options = // flip switches you configure by clicking in the UI here:
 
   '.magic.tag.diff { clear: left; margin-right: 0.25em; }\n' + // &Delta; marker
 
-  (!options.changed ? '' :
+  // FIXME: these could become a by-default-on? config flag to toggle "changed"
+  //        markers (in folded mode) after page decoration. ["options.changed"]
+  //        They show files changed, lines added / removed in folded mode:
    '#commit .folded .machine { padding-bottom: 0; }\n' +
    '#commit .machine #toc .diffstat { border: 0; padding: 1px 0 0; }\n' +
    '#commit .machine #toc .diffstat-bar { opacity: 0.75; }\n' +
    '#commit .machine #toc .diffstat-summary { font-weight: normal; }\n'+
    '#commit .envelope.selected .machine #toc span { border-bottom: 0; }\n' +
-   '#commit .machine #toc { float: right; width: 1px; margin: 0; border: 0; }');
+   '#commit .machine #toc { float: right; width: 1px; margin: 0; border: 0; }';
 
-var on_page_change =
-[ prep_parent_links
-, inject_commit_names
-], keys = Object.keys || function _keys(o) {
+var keys = Object.keys || function _keys(o) {
   var r = [], k;
   for (k in o) if (o.hasOwnProperty(k)) r.push(k);
   return r;
@@ -94,12 +155,22 @@ var on_page_change =
 // Run first at init, and then once per (settled) page change, for later updates
 // caused by stuff like AutoPagerize.
 function onChange() {
-  on_page_change.forEach(function(cb, x) { cb(); });
+  prep_parent_links(); // FIXME: integrate these in features / the loop below:
+  for (var name in features) {
+    var feature  = features[name]
+      , callback = feature.on_page_change;
+    if (callback) callback();
+  }
+  inject_commit_names(); // FIXME: integrate too as per above
 }
 
 function init() {
   $('body').addClass('all_folded') // preload the loading throbber, so it shows
     .append('<img src="'+ url +'" style="visibility:hidden;">'); // up promptly
+  for (var name in features) {
+    var feature = features[name];
+    if (feature.css) css += feature.css.join('\n');
+  }
   $('head').append($('<style type="text/css"></style>').html(css));
   $('.commit').live('click', toggle_commit_folding);
 
@@ -399,18 +470,6 @@ function prep_parent_links() {
     if (pr.find('a[hotkey=p][href$='+ id +']').length) pr.addClass('adjacent');
     ci.attr('id', 'c_' + id);
   });
-
-  // print proper time stamps for .iso_times mode:
-  $('.date > time:first-child').each(unrelatize_dates);
-}
-
-// Where github has <time>five seconds ago</time>, in .iso_times mode upgrade to
-// "Sat 14:58:30 (five seconds ago)" instead, for those of us scanning the page
-// for what weekday / time of day something happened at without doing time math.
-function unrelatize_dates() {
-  var ts = this.title, at = new Date(ts.replace(/-/g,'/')), t = ts.split(' ')[1]
-    , wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][at.getDay()];
-  $(this).before('<abbr class="iso" title="'+ ts +'">'+ wd +' '+ t +' </abbr>');
 }
 
 function try_scroll_first(wrappee, link_type) {
@@ -444,6 +503,7 @@ function unlight_related(e) {
     GitHub.Commits.select(GitHub.Commits.current);
 }
 
+// FIXME: integrate with the features blob
 function show_docs(x) {
   var docs =
   { f: '(un)Fold selected (or all, if none)'
@@ -458,36 +518,46 @@ function show_docs(x) {
 
 
 function init_config() {
-  for (var o in toggle_options) {
-    if ((options[o] = !!window.localStorage.getItem(o)))
-      $('body').addClass(o);
-    $(toggle_options[o])
-      .live('click', { option: o }, toggle_option)
-      .live('hover', { option: o }, show_docs_for);
+  for (var name in features) {
+    var feature = features[name]
+      , enabled = feature.enabled = !!window.localStorage.getItem(name);
+    if (enabled) $('body').addClass(name);
+
+    if (feature.toggle_selector)
+      $(feature.toggle_selector)
+        .live('click', { option: name }, toggle_option)
+        .live('hover', { option: name }, show_docs_for)
+      ;
   }
 }
 
+// an "option toggle" element in the page was clicked; make it so!
 function toggle_option(e) {
-  var o = e.data.option, cb, toggle_fn = toggle[o];
-  if ((options[o] = !window.localStorage.getItem(o))) {
-    window.localStorage.setItem(o, '1');
-    if (toggle_fn) toggle_fn(true);
-  }
-  else {
-    window.localStorage.removeItem(o);
-    if (toggle_fn) toggle_fn(false);
-  }
-  $('body').toggleClass(o);
+  var name    = e.data.option
+    , feature = features[name];
+
+  if ((feature.enabled = !window.localStorage.getItem(name)))
+    window.localStorage.setItem(name, '1');
+  else
+    window.localStorage.removeItem(name);
+
+  if (feature.toggle_callback)
+    feature.toggle_callback(feature.enabled);
+
+  $('body').toggleClass(name);
   show_docs_for.apply(this, arguments);
-  return false; // do not fold / unfold
+
+  return false; // capture the click so it doesn't also cause a fold or unfold
 }
 
 function show_docs_for(e) {
-  var o = e.data.option;
-  var is = !!window.localStorage.getItem(o);
-  $(this).css('cursor', 'pointer')
-         .attr('title', 'Click to toggle option "' + o.replace(/_/g, ' ') +'" '+
-                        (is ? 'off' : 'on'));
+  var name  = e.data.option
+    , state = !!window.localStorage.getItem(name)
+    , other = state ? 'off' : 'on'
+    , title = 'Click to toggle option "'+ name.replace(/_/g, ' ') +'" '+ other;
+  $(features[name].toggle_selector)
+    .css('cursor', 'pointer')
+    .attr('title', title);
 }
 
 function toggle_selected_folding() {
@@ -650,7 +720,7 @@ function inline_changeset(doneCallback) {
 
     var files = changeset.find('[id^="diff-"]').each(fix_link), line2;
 
-    if (options.changed) show_changed();
+    /*if (options.changed)*/ show_changed(); // FIXME: options.changed, cont:d
 
     // now, add lines 2.. of the commit message to the unfolded changeset view
     var whole = $('#commit', changeset); // contains the whole commit message
@@ -716,6 +786,8 @@ function when_settled(cb, ms) {
     waiter = setTimeout(is_settled, 100);
   };
 }
+
+
 
 // Github handlers (from http://assets1.github.com/javascripts/bundle_github.js)
 // - this is all probably prone to die horribly as the site grows features, over
