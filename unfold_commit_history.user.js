@@ -6,7 +6,7 @@
 // @include       http://github.com/*/commits*
 // @match         https://github.com/*/commits*
 // @match         http://github.com/*/commits*
-// @version       1.8.4
+// @version       1.8.4.1
 // ==/UserScript==
 
 (function exit_sandbox() { // see end of file for unsandboxing code
@@ -138,7 +138,19 @@ var features =
           .each(update_author_filter); // find not-yet-catered commits
       }
     }
-  };
+  }
+
+, DEV_MODE = console.warn && window.localStorage.getItem('github_improved_dev')
+, ENTER = !DEV_MODE ? function(){}
+  : function ENTER(id) {
+      (ENTER[id] = ENTER[id] || []).push(+new Date);
+    }
+, LEAVE = !DEV_MODE ? ENTER
+  : function LEAVE(id) {
+      var dt = new Date - ENTER[id].pop();
+      if (dt > 100) console.warn(dt +'ms in github improved '+ id);
+    }
+;
 
 var  at = '.commit.loading .machine a[hotkey="c"]',
     url = '/images/modules/browser/loading.gif',
@@ -198,16 +210,25 @@ var keys = Object.keys || function _keys(o) {
 // Run first at init, and then once per (settled) page change, for later updates
 // caused by stuff like AutoPagerize.
 function onChange() {
+  ENTER('onChange::prep_parent_links');
   prep_parent_links(); // FIXME: integrate these in features / the loop below:
+  LEAVE('onChange::prep_parent_links');
   for (var name in features) {
     var feature  = features[name]
       , callback = feature.on_page_change;
-    if (callback) callback();
+    if (callback) {
+      ENTER('onChange::'+ name);
+      callback();
+      LEAVE('onChange::'+ name);
+    }
   }
+  ENTER('onChange::inject_commit_names');
   inject_commit_names(); // FIXME: integrate too as per above
+  LEAVE('onChange::inject_commit_names');
 }
 
 function init() {
+  ENTER('init');
   var name, feature;
   $('body').addClass('all_folded') // preload the loading throbber, so it shows
     .append('<img src="'+ url +'" style="visibility:hidden;">'); // up promptly
@@ -260,13 +281,16 @@ function init() {
         'function() { return $(".commit"); });void 0';
 
   setTimeout(function() { AOP_also_call('$.facebox.reveal', show_docs); }, 1e3);
+  LEAVE('init');
 }
 
 // fetch some API resource by api
 function github_api(path, cb) {
   function get() {
-    if (1 === enqueue().length)
+    if (1 === enqueue().length) {
+      if (DEV_MODE) console.warn('github_api: ', path);
       $.ajax(request);
+    }
   }
   function enqueue() {
     var queue = github_api[path] = github_api[path] || [];
@@ -297,6 +321,7 @@ function github_api(path, cb) {
     github_api.pending_token.push(get);
   else {
     github_api.pending_token = [get];
+    if (DEV_MODE) console.warn('github_api: ', path, ' - fetching token');
     $.ajax({ url: '/account/admin'
            , beforeSend: function(xhr) { xhr.withCredentials = true; }
            , success: function(html) {
