@@ -6,7 +6,7 @@
 // @include       http://github.com/*/commits*
 // @match         https://github.com/*/commits*
 // @match         http://github.com/*/commits*
-// @version       1.8.3
+// @version       1.8.4
 // ==/UserScript==
 
 (function exit_sandbox() { // see end of file for unsandboxing code
@@ -93,7 +93,50 @@ var features =
         + ' margin: 0 .3em 0 0; background-color: white; '
         + ' padding: 2px; border: 1px solid #D0D0D0; }'
       ]
-    // FIXME: hook in all the author filter code here, too
+    , init: function draw_filter_panel() {
+        $('#path').after('<div id="author_filter"></div>');
+      }
+    , on_page_change: function render_author_filter(e) {
+        // Count a commit in the view and add it to the author filter.
+        // Marks it with classes "by" and "author_<hash>" classes too.
+        // Also, we create / update the #author_<hash> filter element.
+        function update_author_filter(e) {
+          var mail_hash = /avatar\/([a-f\d]{32})/.exec(this.src)
+            , author_id = 'author_'+ mail_hash[1]
+            , author_re = /\s*\(author\)\s*$/
+            , $gravatar = $('#'+ author_id)
+            , commit_no = parseInt($gravatar.attr('title') || '0', 10)
+            , $envelope = !commit_no && $(this).parents('.actor');
+          if ($envelope) {
+            var img = this.cloneNode(true);
+            img.alt = $envelope.find('.name').text().replace(author_re, '');
+            img.id  = author_id;
+            $('#author_filter').append(img);
+            $(img).click(toggle_author_commits);
+            img.title = ++commit_no +' commit by '+ img.alt;
+            $('head').append('<style id="filtered_authors"></style>');
+          }
+          else
+            $gravatar.attr('title',
+                           ++commit_no +' commits by '+ $gravatar.attr('alt'));
+          $(this).parents('.commit').addClass('by '+author_id);
+          $('#'+ author_id).css('padding-right', (1 + commit_no) +'px');
+        }
+
+        // toggle commit visibility for a clicked author icon in the panel
+        function toggle_author_commits(e) {
+          function get_author_nick() { return this.id; }
+          $(this).toggleClass('filtered');
+          var hide = $('#author_filter .filtered').map(get_author_nick);
+          if (hide.length)
+            hide = '.'+ (array(hide).join(',.')) +' { display: none; }';
+          else hide = '';
+          $('style#filtered_authors').html(hide); // updates the hiddenness css
+        }
+
+        $('.commit:not(.by) .human .actor:nth-child(2) .gravatar > img')
+          .each(update_author_filter); // find not-yet-catered commits
+      }
     }
   };
 
@@ -165,17 +208,24 @@ function onChange() {
 }
 
 function init() {
+  var name, feature;
   $('body').addClass('all_folded') // preload the loading throbber, so it shows
     .append('<img src="'+ url +'" style="visibility:hidden;">'); // up promptly
-  for (var name in features) {
-    var feature = features[name];
-    if (feature.css) css += feature.css.join('\n');
-  }
+
+  for (name in features)
+    if ((feature = features[name]).css)
+      css += feature.css.join('\n') + '\n';
   $('head').append($('<style type="text/css"></style>').html(css));
+
+  for (name in features)
+    if ((feature = features[name]).init)
+      feature.init();
+
   $('.commit').live('click', toggle_commit_folding);
 
   onChange();
-  $(document).bind('DOMNodeInserted', when_settled(onChange), false);
+  on_dom_change('body', onChange);
+
   $('a[href][hotkey=p]')
     .live('mouseover', null, hilight_related)
     .live('mouseout', null,  unlight_related)
@@ -210,57 +260,6 @@ function init() {
         'function() { return $(".commit"); });void 0';
 
   setTimeout(function() { AOP_also_call('$.facebox.reveal', show_docs); }, 1e3);
-
-  render_author_filter();
-}
-
-// makes all authors in the view show up on top; on page load, or page update
-function render_author_filter(e) {
-  if (e) { // postpone reruns until 100ms passed without activity
-    if (render_author_filter.scheduled)
-      clearTimeout(render_author_filter.scheduled);
-    render_author_filter.scheduled = setTimeout(render_author_filter, 100, 0);
-    return;
-  }
-  delete render_author_filter.scheduled;
-
-  if (!$('#author_filter').length) {
-    $('#path').after('<div id="author_filter"></div>');
-    $('#commit').bind('DOMSubtreeModified', render_author_filter);
-  }
-  $('.commit:not(.by) .human .actor:nth-child(2) .gravatar > img')
-    .each(update_author_filter); // find not-yet-catered commits
-}
-
-// makes a particular commit in the view get counted and added to author filter
-function update_author_filter(e) {
-  var mail_hash = /avatar\/([a-f\d]{32})/.exec(this.src)
-    , author_id = 'author_'+ mail_hash[1]
-    , $gravatar = $('#'+ author_id)
-    , commit_no = parseInt($gravatar.attr('title') || '0', 10)
-    , $envelope = !commit_no && $(this).parents('.actor');
-  if ($envelope) {
-    var img = this.cloneNode(true);
-    img.alt = $envelope.find('.name').text().replace(/\s*\(author\)\s*$/, '');
-    img.id  = author_id;
-    $('#author_filter').append(img);
-    $(img).click(toggle_author_commits);
-    img.title = ++commit_no +' commit by '+ img.alt;
-    $('head').append('<style id="filtered_authors"></style>');
-  }
-  else
-    $gravatar.attr('title',
-                   ++commit_no +' commits by '+ $gravatar.attr('alt'));
-  $(this).parents('.commit').addClass('by '+author_id);
-  $('#'+ author_id).css('padding-right', (1 + commit_no) +'px');
-}
-
-function toggle_author_commits(e) {
-  $(this).toggleClass('filtered');
-  var hide = $('#author_filter .filtered').map(function() { return this.id; });
-  if (hide.length) hide = '.'+ (array(hide).join(',.')) +' { display: none; }';
-  else hide = '';
-  $('#filtered_authors').html(hide);
 }
 
 // fetch some API resource by api
@@ -769,6 +768,16 @@ function AOP_also_call(name, fn) {
   '})('+ name +')} finally {void 0}';
 }
 
+function on_dom_change(selector, cb) {
+  function pause_to_tweak_dom() {
+    $(selector).unbind('DOMSubtreeModified', wrapped_callback);
+    try { cb(); } catch(e) {};
+    $(selector).bind('DOMSubtreeModified', wrapped_callback);
+  }
+  var wrapped_callback = when_settled(pause_to_tweak_dom);
+  $(selector).bind('DOMSubtreeModified', wrapped_callback);
+}
+
 // drop calls until at least <ms> (or 100) ms apart, then pass the last on to cb
 function when_settled(cb, ms) {
   function is_settled() {
@@ -783,7 +792,7 @@ function when_settled(cb, ms) {
     self = this;
     args = arguments;
     if (waiter) clearTimeout(waiter);
-    waiter = setTimeout(is_settled, 100);
+    waiter = setTimeout(is_settled, ms);
   };
 }
 
