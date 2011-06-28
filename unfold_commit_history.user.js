@@ -6,7 +6,7 @@
 // @include       http://github.com/*/commits*
 // @match         https://github.com/*/commits*
 // @match         http://github.com/*/commits*
-// @version       1.8.5
+// @version       1.9
 // ==/UserScript==
 
 (function exit_sandbox() { // see end of file for unsandboxing code
@@ -294,6 +294,19 @@ function init() {
       feature.init();
 
   $('.commit').live('click', toggle_commit_folding);
+
+  // Resuscitate "Diff suppressed. Click to show" links in imported diffs. This
+  // one taken from /ie-addon/commits/68ae2cf1446bdfc606f5fb1f26cee18258f20e9a:
+  // <div class="file" id="diff-0-68ae2cf1446bdfc606f5fb1f26cee18258f20e9a">
+  //   <div class="meta" data-path="GetSmartLinks/control.js">file header</div>
+  //   <div class="image"><a href="#" class="js-show-suppressed-diff">
+  //     Diff suppressed. Click to show.
+  //   </a></div>
+  //   <div class="data highlight"><table>[real diff here]</table></data>
+  // <div>
+  $('.commit .image > a.js-show-suppressed-diff').live('click', function(e) {
+    $(this).parent().hide().parent().find('.highlight').show();
+  });
 
   onChange();
   on_dom_change('body', onChange);
