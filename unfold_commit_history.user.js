@@ -6,7 +6,7 @@
 // @include       http://github.com/*/commits*
 // @match         https://github.com/*/commits*
 // @match         http://github.com/*/commits*
-// @version       1.9
+// @version       1.9.1
 // ==/UserScript==
 
 (function exit_sandbox() { // see end of file for unsandboxing code
@@ -306,6 +306,7 @@ function init() {
   // <div>
   $('.commit .image > a.js-show-suppressed-diff').live('click', function(e) {
     $(this).parent().hide().parent().find('.highlight').show();
+    e.preventDefault(); // don't scroll to the top of the page!
   });
 
   onChange();
