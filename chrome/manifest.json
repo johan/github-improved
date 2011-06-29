@@ -1,5 +1,5 @@
 { "name": "Github improved"
-, "version": "1.9.1"
+, "version": "1.9.2"
 , "icons":
   { "128": "128.png"
   }
@@ -8,7 +8,7 @@
   [ { "js":      [ "unfold_commit_history.user.js"
                  ]
     , "matches": [ "https://github.com/*/commits*"
-                 , "http://github.com/*/commits*"
+                 , "https://github.com/*/search*"
                  ]
     , "run_at": "document_end"
     }
