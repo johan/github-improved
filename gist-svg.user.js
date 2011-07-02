@@ -27,7 +27,12 @@ function init() {
       , svg, viewbox, w, h;
 
     th.prepend(ai, at); // add header links
-    svg = td.prepend(td.find('.highlight').text()).children('svg:first');
+
+    // parse and inject the SVG image (as innerHTML can be lossy on XML content)
+    svg = td.find('.highlight').text(); // grab the SVG's XML source
+    svg = (new DOMParser).parseFromString(svg, 'text/xml'); // make XML document
+    svg = document.importNode(svg.documentElement, true); // (HTML)SVGSVGElement
+    svg = td.prepend(svg).find('svg:first'); // insert in doc, and jQuery:ify it
 
     // set width and height to fill the width of the image, subject to what
     // the viewBox declares (ignoring any width/height absolute units crap)
