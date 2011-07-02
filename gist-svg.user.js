@@ -29,7 +29,7 @@ function init() {
     th.prepend(ai, at); // add header links
 
     // parse and inject the SVG image (as innerHTML can be lossy on XML content)
-    svg = td.find('.highlight').text(); // grab the SVG's XML source
+    svg = td.find('.highlight').text().replace(/\xA0/g, ' '); // XML source code
     svg = (new DOMParser).parseFromString(svg, 'text/xml'); // make XML document
     svg = document.importNode(svg.documentElement, true); // (HTML)SVGSVGElement
     svg = td.prepend(svg).find('svg:first'); // insert in doc, and jQuery:ify it
