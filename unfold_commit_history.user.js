@@ -6,13 +6,14 @@
 // @include       https://github.com/*/commits*
 // @match         https://github.com/*/commits*
 // @match         https://github.com/*/search*
-// @version       1.9.2
+// @version       1.9.3
 // ==/UserScript==
 
 (function exit_sandbox() { // see end of file for unsandboxing code
 
 // FIXME: enabled_css + disabled_css + github_css?
-var features =
+var hot = 'data-key' // used to find links with hotkey assignments
+  , features =
   // Problem: where committer != author is the norm, you can't scan for either!
   //
   // So instead of aligning both left (and below each other) divide the page in
@@ -212,7 +213,7 @@ var features =
     }
 ;
 
-var  at = '.commit.loading .machine a[hotkey="c"]',
+var  at = '.commit.loading .machine a['+ hot +'="c"]',
     url = '/images/modules/browser/loading.gif',
   plain = ':not(.magic):not([href*="#"])',
 
@@ -312,7 +313,7 @@ function init() {
   onChange();
   on_dom_change('body', onChange);
 
-  $('a[href][hotkey=p]')
+  $('a[href]['+ hot +'="p"]')
     .live('mouseover', null, hilight_related)
     .live('mouseout', null,  unlight_related)
     .live('click', null,   scroll_to_related); // if triggered by mouse click,
@@ -324,9 +325,9 @@ function init() {
 
   $('<div class="pagination" style="margin: 0; padding: 0;"></div>')
     .prependTo('#commit .separator:first');
-  $('<a class="download_all" hotkey="d"><u>d</u>ecorate all</a>')
+  $('<a class="download_all" '+ hot +'="d"><u>d</u>ecorate all</a>')
     .appendTo('.pagination').click(download_all);
-  $('<a class="fold_unfold" hotkey="f"><u>f</u>old all</a>')
+  $('<a class="fold_unfold" '+ hot +'="f"><u>f</u>old all</a>')
     .appendTo('.pagination');
   $('.fold_unfold').toggle(unfold_all, fold_all);
 
@@ -465,7 +466,7 @@ function get_current_branch() {
 }
 
 function get_first_commit_hash() {
-  return $('#commit .commit .machine a[hotkey="c"]')[0].pathname.slice(-40);
+  return $('#commit .commit .machine a['+ hot +'="c"]')[0].pathname.slice(-40);
 }
 
 // annotates commits with tag/branch names in little bubbles on the right side
@@ -551,12 +552,13 @@ function prep_parent_links() {
   function hash(a) {
     return a.pathname.slice(a.pathname.lastIndexOf('/') + 1);
   }
-  $('.commit:not([id]) a[href][hotkey=p]').each(function reroute() {
+  $('.commit:not([id]) a[href]['+ hot +'="p"]').each(function reroute() {
     $(this).attr('rel', hash(this));
   });
-  $('.commit:not([id]) a[href][hotkey=c]').each(function set_id() {
+  $('.commit:not([id]) a[href]['+ hot +'="c"]').each(function set_id() {
     var id = hash(this), ci = $(this).closest('.commit'), pr = ci.prev();
-    if (pr.find('a[hotkey=p][href$='+ id +']').length) pr.addClass('adjacent');
+    if (pr.find('a['+ hot +'="p"][href$='+ id +']').length)
+      pr.addClass('adjacent');
     ci.attr('id', 'c_' + id);
   });
 }
@@ -566,7 +568,7 @@ function try_scroll_first(wrappee, link_type) {
   var args = _slice.call(arguments, 1), self = this;
   if (link_type !== 'p') return normal();
 
-  var link = GitHub.Commits.selected().find('[hotkey="'+ link_type +'"]')[0];
+  var link = GitHub.Commits.selected().find('['+ hot +'="'+ link_type +'"]')[0];
   // scroll_to_related returns true if link is not in the current view
   if (link && scroll_to_related.call(link) &&
       confirm('Parent commit not in view -- load parent page instead?'))
