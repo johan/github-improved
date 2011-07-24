@@ -1,14 +1,19 @@
 // ==UserScript==
-// @name          Gist.github.com: inline SVG images
+// @name          inline SVG images at github and gist.github.com
 // @namespace     http://github.com/johan/
 // @description   When viewing SVG gists, show the image instead of its source code, by default, and links to switch between the two
 // @include       https://gist.github.com/*
+// @include       https://github.com/*/blob/*.svg
 // @match         https://gist.github.com/*
-// @version       1.0
+// @match         https://github.com/*/blob/*.svg
+// @version       1.1
 // ==/UserScript==
 
 (function exit_sandbox() { // see end of file for unsandboxing code
-  var sel_svg = '#files .file[id$=".svg"]' // context node for all following:
+  var is_gist = 'gist.github.com' === location.hostname
+   // sel_svg is the context node for all the selectors
+    , sel_svg = is_gist ? '#files .file[id$=".svg"]'
+                        : '[data-path$=".svg/"] + .frames .file'
     , sel_box = '.data'
     , sel_raw = '.data > table td[width="100%"]'
     , sel_num = '.data > table td:not([width="100%"])'
@@ -27,6 +32,7 @@ function init() {
       , svg, viewbox, w, h;
 
     th.prepend(ai, at); // add header links
+    if (!is_gist) $([ai, at]).wrap('<li></li>');
 
     // parse and inject the SVG image (as innerHTML can be lossy on XML content)
     svg = td.find('.highlight').text().replace(/\xA0/g, ' '); // XML source code
@@ -90,7 +96,8 @@ function show_as_image(e) {
     , at = me.parents(sel_svg)
     ;
   e.preventDefault(); // don't scroll to top
-  me.css('color', '#000').siblings('a').css('color', '');
+  me.parents('ul').find('a').css('color', '');
+  me.css('color', '#000');
 
   at.find(sel_num).hide(); // hide line numbers
   at.find(sel_raw).children('svg:first').show().siblings().hide(); // show svg
@@ -101,7 +108,8 @@ function show_as_text(e) {
     , at = me.parents(sel_svg)
     ;
   e.preventDefault(); // don't scroll to top
-  me.css('color', '#000').siblings('a').css('color', '');
+  me.parents('ul').find('a').css('color', '');
+  me.css('color', '#000');
 
   at.find(sel_num).show(); // show line numbers
   at.find(sel_raw).children('.highlight').show().siblings().hide(); // and file
@@ -144,11 +152,11 @@ if ('object' === typeof opera && opera.extension) {
   document.addEventListener('DOMContentLoaded', init, false); // GM-style init
 }
 else { // for Chrome or Firefox+Greasemonkey
-  if ('undefined' == typeof __RUN_ME_IN_PAGE_SCOPE__) { // unsandbox, please!
+  if ('undefined' == typeof __RUN_ME_IN_PG_SCOPE__) { // unsandbox, please!
     var src = exit_sandbox + '',
      script = document.createElement('script');
     script.setAttribute('type', 'application/javascript');
-    script.innerHTML = 'const __RUN_ME_IN_PAGE_SCOPE__ = true;\n('+ src +')();';
+    script.innerHTML = 'const __RUN_ME_IN_PG_SCOPE__ = true;\n('+ src +')();';
     document.documentElement.appendChild(script);
     document.documentElement.removeChild(script);
   } else { // unsandboxed -- here we go!
