@@ -96,7 +96,7 @@ function show_as_image(e) {
     , at = me.parents(sel_svg)
     ;
   e.preventDefault(); // don't scroll to top
-  me.parents('ul').find('a').css('color', '');
+  me.parents('.actions').find('a').css('color', '');
   me.css('color', '#000');
 
   at.find(sel_num).hide(); // hide line numbers
@@ -108,7 +108,7 @@ function show_as_text(e) {
     , at = me.parents(sel_svg)
     ;
   e.preventDefault(); // don't scroll to top
-  me.parents('ul').find('a').css('color', '');
+  me.parents('.actions').find('a').css('color', '');
   me.css('color', '#000');
 
   at.find(sel_num).show(); // show line numbers
