@@ -218,7 +218,7 @@ var  at = '.commit.loading .machine a['+ hot +'="c"]',
   plain = ':not(.magic):not([href*="#"])',
 
   // all changeset links in the message context of their own changeset
-    all = '.envelope.commit .message a[href^="/"]:not(.loaded)'+ plain,
+    all = '.commit .commit-title a[href^="/"]:not(.loaded)'+ plain,
     css = // used for .toggleClass('folded'), for, optionally, hiding:
   '.file.folded > .data,\n' + // individual .commit .changeset .file:s
   '.file.folded > .image,\n' + // (...or their corresponding .image:s)
@@ -461,12 +461,16 @@ function get_named(what, cb, no_cb, refresh) {
   return false;
 }
 
+//function get_master_branch() {
+//  return $('.subnav-bar a.switcher').data('masterBranch');
+//}
+
 function get_current_branch() {
-  return $('.subnav-bar li:first-child ul li strong').text().slice(0, -2);
+  return $('.subnav-bar a.switcher').data('ref');
 }
 
 function get_first_commit_hash() {
-  return $('#commit .commit .machine a['+ hot +'="c"]')[0].pathname.slice(-40);
+  return $('.site .commit a['+ hot +'="c"]')[0].pathname.slice(-40);
 }
 
 // annotates commits with tag/branch names in little bubbles on the right side
@@ -696,14 +700,18 @@ function toggle_commit_folding(e) {
       $(e.target).closest('a[href], .changeset, .gravatar').length)
     return; // clicked a link, or in the changeset; don't do fold action
 
+  ENTER('toggle_commit_folding');
+
   // .magic and *# links aren't github commit links (but stuff we added)
-  var $link = $('.message a[href^="/"][href*="/commit/"]'+ plain, this);
+  var $link = $('.commit-title a[href^="/"][href*="/commit/"]'+ plain, this);
   if ($link.hasClass('loaded'))
     $(this).toggleClass('folded');
   else
     $link.each(inline_and_unfold);
 
   select($($(this).closest('.commit')), !'scroll');
+
+  LEAVE('toggle_commit_folding');
 }
 
 // pass a changeset node, id or hash and have github select it for us
@@ -806,9 +814,9 @@ function inline_changeset(doneCallback) {
   commit.find('.human, .machine')
     .css('cursor', 'pointer');
   var changeset = commit
-    .append('<div class="changeset" style="float: left; width: 100%;"/>')
+    .append('<div class="changeset" style="margin-left: -44px"/>')
     .find('.changeset') // ,#all_commit_comments removed from next line
-    .load(this.href + '.html #commit,#toc,#files', post_process);
+    .load(this.href + '.html #toc,#files', post_process); // (.explain, too?)
 }
 
 // Makes a function that can replace wrappee that instead calls wrapper(wrappee)
@@ -946,11 +954,11 @@ if ('object' === typeof opera && opera.extension) {
   document.addEventListener('DOMContentLoaded', init, false); // GM-style init
 }
 else { // for Chrome or Firefox+Greasemonkey
-  if ('undefined' == typeof __UNFOLD_IN_PAGE_SCOPE__) { // unsandbox, please!
+  if ('undefined' == typeof __RUNNING_IN_PAGE__) { // unsandbox, please!
     var src = exit_sandbox + '',
      script = document.createElement('script');
     script.setAttribute('type', 'application/javascript');
-    script.innerHTML = 'const __UNFOLD_IN_PAGE_SCOPE__ = true;\n('+ src +')();';
+    script.innerHTML = 'const __RUNNING_IN_PAGE__ = true;\n('+ src +')();';
     document.documentElement.appendChild(script);
     document.documentElement.removeChild(script);
   } else { // unsandboxed -- here we go!
