@@ -4,9 +4,11 @@
 // @description   Adds "unfold all changesets" buttons (hotkey: f) above/below Commit History pages at github, letting you browse the source changes without leaving the page. (Click a commit header again to re-fold it.) You can also fold or unfold individual commits by clicking on non-link parts of the commit. As a bonus, all named commits get their tag/branch names annotated in little bubbles on the right.
 // @include       https://github.com/*/search*
 // @include       https://github.com/*/commits*
+// @include       https://github.com/*/compare*
+// @match         https://github.com/*/compare*
 // @match         https://github.com/*/commits*
 // @match         https://github.com/*/search*
-// @version       2.0.2
+// @version       2.0.3
 // ==/UserScript==
 
 (function exit_sandbox() { // see end of file for unsandboxing code
@@ -316,7 +318,22 @@ function onChange() {
 }
 
 function init() {
-  ENTER('init');
+  var path = location.pathname.split('/')
+  //, repo = path.slice(0, 3).join('/')
+    , what = path[3]
+    , func = ({ commits: commits_page
+              , compare: compare_page
+              })[what]
+  //, args = path.slice(4).join('/')
+    ;
+  if (func) {
+    ENTER(what + '_page');
+    func();
+    LEAVE(what + '_page');
+  }
+}
+
+function commits_page() {
   var name, feature;
   $('body').addClass('all_folded') // preload the loading throbber, so it shows
     .append('<img src="'+ url +'" style="visibility:hidden;">'); // up promptly
@@ -383,7 +400,42 @@ function init() {
         'function() { return $(".commit"); });void 0';
 
   setTimeout(function() { AOP_also_call('$.facebox.reveal', show_docs); }, 1e3);
-  LEAVE('init');
+}
+
+function compare_page() {
+  function warn() { if (DEV_MODE) console.warn('No tags!'); }
+  get_tags(wrap(link_adjacent, 'link_adjacent'), warn, false);
+}
+
+function link_adjacent(tags, repo) {
+  var all_tags = keys(tags)
+
+    , cmp_path = location.pathname
+    , cmp_root = cmp_path.replace(/[^\/]*$/, '')
+    , cmp_what = cmp_path.replace(/^.*\//, '').split('...')
+    , cmp_prev = cmp_what[0]
+    , cmp_next = cmp_what[1]
+    , prev_tag = get_next_tag(all_tags, cmp_prev, -1)
+    , next_tag = get_next_tag(all_tags, cmp_next, 1) ||
+                 ('master' === cmp_next ? '' : 'master')
+
+    , $swap_us = $('.switch.tooltipped')
+    , $dot_dot = $swap_us.siblings('em')
+
+    , $to_prev = $( '<a class="tooltipped" title="Step back one tag" href="'
+                  + cmp_root + prev_tag + '...' + cmp_prev +'">☚</a>')
+    , $to_next = $( '<a class="tooltipped" title="Step forward one tag" href="'
+                  + cmp_root + cmp_next + '...' + next_tag +'">☛</a>')
+    ;
+
+  $swap_us.parent().append($to_next);
+  $swap_us.before($to_prev);
+  $dot_dot.before($swap_us);
+  $swap_us.css({ position: 'absolute', marginLeft: '2px', zIndex: 1 });
+  $dot_dot.css({ position: 'relative', bottom: '-5px' });
+
+  if (!prev_tag) $to_prev.css('visibility', 'hidden');
+  if (!next_tag) $to_next.css('visibility', 'hidden');
 }
 
 // fetch some API resource by api
@@ -452,10 +504,10 @@ function get_branches(cb, no_branches, refresh) {
 
 // returns an array of all `what` ('tag' or 'branch') names in this repository
 function get_commitish_names(what) {
-  function name(i, a) { return $(a).data('name'); }
+  function name(i, a) { return $(a).text(); }
   what = what.replace(/e?s$/, ''); // also grok 'tags' and 'branches'
   return $('.commitish-selector .commitish-item.'+ what +
-           '-commitish a[data-name]').map(name).get();
+           '-commitish a').map(name).get();
 }
 
 // returns true if the resource came straight from its cache.
@@ -528,12 +580,10 @@ function get_commit(hash) {
   return $('#c_'+ hash);
 }
 
-
 // annotates commits with tag/branch names in little bubbles on the right side
 function inject_commit_names() {
   function draw_names(type, names, repo) {
-    var all_names = keys(names)
-      , kin_cache = {}; // kin_re => [all names matching kin_re]
+    var all_names = keys(names); // kin_re => [all names matching kin_re]
     all_names.sort().forEach(function(name) {
       var hash = names[name]
         , url  = repo +'/commits/'+ name
@@ -553,16 +603,7 @@ function inject_commit_names() {
 
       // if we just linked a tag, also link a tag changeset, if applicable:
       if (type === 'tag') {
-        var kin_re   = quote_re(name).replace(/(-|\\\.|\d+)+/g,
-                                              '(-|\\\\\\.|\\d+)+')
-          , similar  = new RegExp(kin_re)
-          , kin_tags = kin_cache[kin_re] = kin_cache[kin_re] ||
-                     ( all_names
-                         .filter(function(tag) { return similar.test(tag); })
-                         .sort(dwim_sort_func)
-                     )
-          , this_idx = kin_tags.indexOf(name)
-          , last_tag = this_idx && kin_tags[this_idx - 1];
+        var last_tag = get_next_tag(all_names, name, -1);
         if (last_tag)
           $has.append( '<a class="gobutton magic diff" title="Changes since '
                      + last_tag +'" href="'+ repo +'/compare/'+ last_tag +'...'
@@ -589,6 +630,22 @@ function wrap(fn, name) {
     LEAVE(name);
     return result;
   };
+}
+
+// tries to deliver the next (offset=1) or previous (offset=-1) tag in tags
+function get_next_tag(tags, tag, offset) {
+   // kin_re => [all tags matching kin_re]
+  var cache    = get_next_tag.kin_cache = get_next_tag.kin_cache || {}
+    , kin_re   = quote_re(tag).replace(/(-|\\\.|\d+)+/g, '(-|\\\\\\.|\\d+)+')
+    , similar  = new RegExp(kin_re)
+    , kin_tags = cache[kin_re] = cache[kin_re] ||
+                 ( tags.filter(function(tag) { return similar.test(tag); })
+                       .sort().sort(dwim_sort_func)
+                 )
+    , this_idx = kin_tags.indexOf(tag)
+    , want_tag = this_idx + (offset || -1)
+    ;
+  return kin_tags[want_tag];
 }
 
 function quote_re( re ) {
