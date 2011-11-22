@@ -6,7 +6,7 @@
 // @include       https://github.com/*/commits*
 // @match         https://github.com/*/commits*
 // @match         https://github.com/*/search*
-// @version       1.9.3
+// @version       2.0.2
 // ==/UserScript==
 
 (function exit_sandbox() { // see end of file for unsandboxing code
@@ -235,6 +235,7 @@ var hot = 'data-key' // used to find links with hotkey assignments
 
 , DEV_MODE = 'undefined' !== typeof console && console.warn &&
              window.localStorage.getItem('github_improved_dev')
+, DEV_PEEK = DEV_MODE && new RegExp(DEV_MODE, 'i')
 , ENTER = !DEV_MODE ? function(){}
   : function ENTER(id) {
       (ENTER[id] = ENTER[id] || []).push(+new Date);
@@ -242,7 +243,8 @@ var hot = 'data-key' // used to find links with hotkey assignments
 , LEAVE = !DEV_MODE ? ENTER
   : function LEAVE(id) {
       var dt = new Date - ENTER[id].pop();
-      if (dt > 100) console.warn(dt +'ms in github improved '+ id);
+      if (dt > 100 || DEV_PEEK.test(id))
+        console.warn(dt +'ms in github improved '+ id);
     }
 ;
 
