@@ -279,13 +279,12 @@ var  at = '.commit.loading .machine a['+ hot +'="c"]',
   '.folded .message .truncated:after { content: " (\u2026)"; }\n' +
 
   // tag and branch labels:
-  '.magic.tag, .magic.branch { opacity: 0.75; }' +
-  '.message .tag { background: #FE7; text-align: right; padding: 0 2px; ' +
-  ' margin: 0 -5px .1em 0; border-radius: 4px; float: right; clear: both; }\n' +
-  '.message .branch { background: #7EF; text-align: right; padding: 0 2px; ' +
-  ' margin: 0 -5px .1em 0; border-radius: 4px; float: right; clear: both; }\n' +
-
-  '.magic.tag.diff { clear: left; margin-right: 0.25em; }\n' // &Delta; marker
+  '.tag-refs, .branch-refs { opacity: 0.5; white-space: nowrap; ' +
+  ' display: inline-block; position: absolute; }\n' +
+  '.tag-refs { margin-top: -1px; }\n' +
+//'.commit-group-item .magic.tag    { background: #FE7; border-color: #DC5; }' +
+//'.commit-group-item .magic.branch { background: #7EF; border-color: #5CD; }' +
+  '.magic.tag.diff { clear: left; }\n' // &Delta; marker
 ;
 
 var keys = Object.keys || function _keys(o) {
@@ -389,7 +388,7 @@ function init() {
 function github_api(path, cb) {
   function get() {
     if (1 === enqueue().length) {
-      if (DEV_MODE) console.warn('github_api: ', path);
+      if (DEV_MODE) console.warn('github_api:', path);
       $.ajax(request);
     }
   }
@@ -449,6 +448,15 @@ function get_branches(cb, no_branches, refresh) {
   return get_named('branches', cb, no_branches, refresh);
 }
 
+// returns an array of all `what` ('tag' or 'branch') names in this repository
+function get_commitish_names(what) {
+  function name(i, a) { return $(a).data('name'); }
+  what = what.replace(/e?s$/, ''); // also grok 'tags' and 'branches'
+  return $('.commitish-selector .commitish-item.'+ what +
+           '-commitish a[data-name]').map(name).get();
+}
+
+// returns true if the resource came straight from its cache.
 function get_named(what, cb, no_cb, refresh) {
   function got_names(names) {
     // cache the repository's tags/branches for later
@@ -464,9 +472,11 @@ function get_named(what, cb, no_cb, refresh) {
   if (repo) repo = repo[0]; else return false;
 
   var path = what + repo
+    // the tag or branch names we have cached, if any, or false, for "nothing"
     , xxxs = window.localStorage[path] && JSON.parse(window.localStorage[path])
-    , _css = '.subnav-bar '+ (what === 'tags' ? 'li + li' : 'li:first-child')
-    , page = $(_css + ' a.dropdown + ul > li').map(get_name).get().sort() || []
+    // all tag or branch names listed in the current page
+    , page = get_commitish_names(what).sort() || []
+    // all tag or branch names we have already (0+)
     , have = xxxs && keys(xxxs).sort() || []
     , at_b = 'branches' === what && get_current_branch();
 
@@ -474,7 +484,7 @@ function get_named(what, cb, no_cb, refresh) {
   // contradicts what we have saved
   if (!xxxs || at_b && xxxs[at_b] !== get_first_commit_hash()) refresh = true;
 
-  // optimization - if there are no tags in the page, don't go fetch any
+  // optimization - if there are none in this repository, don't go fetch any
   if ('tags' === what && !page.length) {
     have = page;
     xxxs = {};
@@ -508,6 +518,15 @@ function get_first_commit_hash() {
   return $('.site .commit a['+ hot +'="c"]')[0].pathname.slice(-40);
 }
 
+function get_browse_link(hash) {
+  return $('.commit .commit-meta a.browse-button[href$="/tree/'+ hash +'"]');
+}
+
+function get_commit(hash) {
+  return $('#c_'+ hash);
+}
+
+
 // annotates commits with tag/branch names in little bubbles on the right side
 function inject_commit_names() {
   function draw_names(type, names, repo) {
@@ -516,28 +535,42 @@ function inject_commit_names() {
     all_names.sort().forEach(function(name) {
       var hash = names[name]
         , url  = repo +'/commits/'+ name
-        , sel  = 'a.'+ type +'[href="'+ url +'"]'
-        , $a   = $('.commit pre > a[href$="'+ repo +'/commit/'+ hash +'"]');
-      if (!$a.parent().find(sel).length) { // does the commit exist in the page?
-        $(sel).remove(); // remove tag / branch from prior location (if any)
-        $a.before('<a class="magic '+type+'" href="'+ url +'">'+ name +'</a>');
+        , sel  = 'a.magic.'+ type +'[href="'+ url +'"]'
+        , $ci  = get_commit(hash) // new location for this tag / branch
+        , hcls = type +'-refs'
+        , $has = $ci.find('.'+ hcls)
+        ;
+      if ($ci.parent().find(sel).length) return; // it's already rendered here
+      if (!$has.length)
+        $has = $ci.prepend('<div class="'+ hcls +'"></div>').find('.'+ hcls);
 
-        // if we just linked a tag, also link a tag changeset, if applicable:
-        if (type !== 'tag') return;
-        var kin_re   = quote_re(name).replace(/\d+/g, '\\d+')
+      $(sel).remove(); // remove tag / branch from prior location (if any)
+      $has.prepend( '<a class="magic gobutton '+type+'" href="'+ url +'">'
+                  + '<span class="sha">'+ name +'</span></a>'
+                  );
+
+      // if we just linked a tag, also link a tag changeset, if applicable:
+      if (type === 'tag') {
+        var kin_re   = quote_re(name).replace(/(-|\\\.|\d+)+/g,
+                                              '(-|\\\\\\.|\\d+)+')
           , similar  = new RegExp(kin_re)
-          , kin_tags = kin_cache[similar] = kin_cache[similar] ||
+          , kin_tags = kin_cache[kin_re] = kin_cache[kin_re] ||
                      ( all_names
                          .filter(function(tag) { return similar.test(tag); })
                          .sort(dwim_sort_func)
                      )
           , this_idx = kin_tags.indexOf(name)
           , last_tag = this_idx && kin_tags[this_idx - 1];
+        console.error(name, kin_re, kin_tags, this_idx, last_tag);
         if (last_tag)
-          $a.before( '<a class="magic tag diff" title="Changes since '+ last_tag
-                   + '" href="'+ repo +'/compare/'+ last_tag +'...'+ name +'">'
-                   + '&Delta;</a>'
-                   );
+          $has.prepend( '<a class="gobutton magic diff" title="Changes since '
+                      + last_tag +'" href="'+ repo +'/compare/'+ last_tag +'...'
+                      + name +'">&Delta;</a>'
+                      );
+        $has.css('left', (10 + $has.parent().prop('offsetWidth')) +'px');
+      }
+      else {
+        $has.css('left', -(10 + $has.prop('offsetWidth')) +'px');
       }
     });
   }
@@ -547,9 +580,18 @@ function inject_commit_names() {
   function draw_branches(branches, repo) {
     draw_names('branch', branches, repo);
   }
-  var refresh = get_branches(draw_branches);
+  var refresh = get_branches(wrap(draw_branches, 'draw_branches'));
   // assume it's best to refresh tags too if any branches were moved
-  get_tags(draw_tags, null, refresh);
+  get_tags(wrap(draw_tags, 'draw_tags'), null, refresh);
+}
+
+function wrap(fn, name) {
+  return function timed() {
+    ENTER(name);
+    var result = fn.apply(this, arguments);
+    LEAVE(name);
+    return result;
+  };
 }
 
 function quote_re( re ) {
