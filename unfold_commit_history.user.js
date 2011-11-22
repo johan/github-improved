@@ -104,30 +104,63 @@ var hot = 'data-key' // used to find links with hotkey assignments
       ]
     }
 
-  // Problem: I can't scan commit history for commits by weekday or time of day
+  // Problem: I can't scan commit history for commits by week number or weekday
   //
-  // Where github has <time title="2011-06-18 15:10:54">33 minutes ago</time>,
-  // iso_times will upgrade to add a prefix like <abbr>Sat 14:58:30</abbr> and
-  // surround the "33 minutes ago" in parentheses. This lets you visually scan
-  // the page for commits by weekday or time of day without getting frustrated.
-  , iso_times:
-    { toggle_selector: '#commit .human .actor .date' // a commit timestamp
+  // Where github has <h3 class="commit-group-heading">Nov 21, 2011</h3>,
+  // wday_names will prefix / suffix those with "W47: " / " - Mon" respectively,
+  // letting you scan the page for commits by either without getting frustrated.
+  , wday_names:
+    { toggle_selector: '.commit-group-heading' // a date header
     , css:
-      [ 'body:not(.iso_times) .date > .iso { display: none; }'
-      , '.iso_times .date > time:before { content: "("; }'
-      , '.iso_times .date > time:after { content: ")"; }'
+      [ '.wday_names .commit-group-heading[data-wno]:before {'
+      , '  content: "W" attr(data-wno) ": "; '
+      , '}'
+      , '.wday_names .commit-group-heading[data-wd]:after {'
+      , '  content: " - " attr(data-wd); '
+      , '}'
       ]
     , on_page_change: function() {
-        function prepend_absolute_wday_times() {
-          var iso  = this.title
-            , time = iso.split(' ')[1]
-            , date = new Date(iso.replace(/-/g, '/'))
-            , week = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-            , day  = week[date.getDay()];
-          $(this).before('<abbr class="iso" title="'+ iso +'">'+
-                         day +' '+ time +' </abbr>');
+        function set_weekday_attr() {
+          var date = new Date($(this).text())
+            , wday = date.getDay()
+            , day  = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][wday]
+            , year = date.getFullYear()
+            , w_53, isow; // ISO 8601 week no: week 1 == first week with a Thu
+          if (isNaN(date)) return; // when github changes: let's fail gracefully
+
+          // compute week number
+          wday = (new Date(year, 0, 4)).getDay() || 7;
+          w_53 = new Date(year, 0, 4 - wday);
+          isow = Math.ceil((date - w_53) / (7 * 864e5));
+          $(this).attr('data-wd', day);
+          $(this).attr('data-wno', isow);
         }
-        $('.date > time:first-child').each(prepend_absolute_wday_times);
+        $(this.toggle_selector +':not([data-wd])').each(set_weekday_attr);
+      }
+    }
+
+  // Problem: I can't scan commit history for commits by time of day
+  //
+  // Where github has <time title="2011-06-18 15:10:54">33 minutes ago</time>,
+  // iso_times will upgrade to add a prefix like <abbr>14:58:30</abbr> and
+  // surround the "33 minutes ago" in parentheses. This lets you visually scan
+  // the page for commits by time of day without getting frustrated.
+  , iso_times:
+    // a commit timestamp or the ISO time of the same, once visible:
+    { toggle_selector: '.commit .authorship time, .commit .authorship abbr.iso'
+    , css:
+      [ 'body:not(.iso_times) .authorship abbr.iso { display: none; }'
+      , '.iso_times .authorship > time:before { content: "("; }'
+      , '.iso_times .authorship > time:after { content: ")"; }'
+      ]
+    , on_page_change: function() {
+        function prepend_absolute_times() {
+          var iso  = this.title
+            , time = iso.split(' ')[1];
+          $(this).before('<abbr class="iso">'+ time +' </abbr>');
+        }
+        // nth-child(2) is to add it once per date, not per page change and date
+        $('.authorship > time:nth-child(2)').each(prepend_absolute_times);
       }
     }
 
@@ -270,7 +303,7 @@ function onChange() {
       , callback = feature.on_page_change;
     if (callback) {
       ENTER('onChange::'+ name);
-      callback();
+      callback.call(feature);
       LEAVE('onChange::'+ name);
     }
   }
