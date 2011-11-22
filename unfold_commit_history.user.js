@@ -561,7 +561,6 @@ function inject_commit_names() {
                      )
           , this_idx = kin_tags.indexOf(name)
           , last_tag = this_idx && kin_tags[this_idx - 1];
-        console.error(name, kin_re, kin_tags, this_idx, last_tag);
         if (last_tag)
           $has.prepend( '<a class="gobutton magic diff" title="Changes since '
                       + last_tag +'" href="'+ repo +'/compare/'+ last_tag +'...'
