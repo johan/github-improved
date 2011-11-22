@@ -279,9 +279,11 @@ var  at = '.commit.loading .machine a['+ hot +'="c"]',
   '.folded .message .truncated:after { content: " (\u2026)"; }\n' +
 
   // tag and branch labels:
-  '.tag-refs, .branch-refs { opacity: 0.5; white-space: nowrap; ' +
-  ' display: inline-block; position: absolute; }\n' +
-  '.tag-refs { margin-top: -1px; }\n' +
+  '.commit-refs { opacity: 0.5; white-space: nowrap; width: 902px; ' +
+  ' display: inline-block; position: relative; margin: 6px 0 -6px -44px; }\n' +
+  '.commit-refs .magic.branch { margin-right: 4px; }' +
+  '.commit-refs .magic.tag, .commit-refs .magic.diff { float: right;' +
+  ' margin-left: 4px; }\n' +
 //'.commit-group-item .magic.tag    { background: #FE7; border-color: #DC5; }' +
 //'.commit-group-item .magic.branch { background: #7EF; border-color: #5CD; }' +
   '.magic.tag.diff { clear: left; }\n' // &Delta; marker
@@ -537,17 +539,17 @@ function inject_commit_names() {
         , url  = repo +'/commits/'+ name
         , sel  = 'a.magic.'+ type +'[href="'+ url +'"]'
         , $ci  = get_commit(hash) // new location for this tag / branch
-        , hcls = type +'-refs'
+        , hcls = 'commit-refs'
         , $has = $ci.find('.'+ hcls)
         ;
       if ($ci.parent().find(sel).length) return; // it's already rendered here
       if (!$has.length)
-        $has = $ci.prepend('<div class="'+ hcls +'"></div>').find('.'+ hcls);
+        $has = $ci.append('<div class="'+ hcls +'"></div>').find('.'+ hcls);
 
       $(sel).remove(); // remove tag / branch from prior location (if any)
-      $has.prepend( '<a class="magic gobutton '+type+'" href="'+ url +'">'
-                  + '<span class="sha">'+ name +'</span></a>'
-                  );
+      $has.append( '<a class="magic gobutton '+type+'" href="'+ url +'">'
+                 + '<tt>'+ name +'</tt></a>'
+                 );
 
       // if we just linked a tag, also link a tag changeset, if applicable:
       if (type === 'tag') {
@@ -562,14 +564,10 @@ function inject_commit_names() {
           , this_idx = kin_tags.indexOf(name)
           , last_tag = this_idx && kin_tags[this_idx - 1];
         if (last_tag)
-          $has.prepend( '<a class="gobutton magic diff" title="Changes since '
-                      + last_tag +'" href="'+ repo +'/compare/'+ last_tag +'...'
-                      + name +'">&Delta;</a>'
-                      );
-        $has.css('left', (10 + $has.parent().prop('offsetWidth')) +'px');
-      }
-      else {
-        $has.css('left', -(10 + $has.prop('offsetWidth')) +'px');
+          $has.append( '<a class="gobutton magic diff" title="Changes since '
+                     + last_tag +'" href="'+ repo +'/compare/'+ last_tag +'...'
+                     + name +'"><tt>&Delta;</tt></a>'
+                     );
       }
     });
   }
