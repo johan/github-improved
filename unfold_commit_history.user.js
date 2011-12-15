@@ -464,8 +464,7 @@ function github_api(path, cb) {
       }
     , dataType: 'json'
     , beforeSend: logged_in && function(xhr) {
-        var name = $('#header .avatarname .name').text()
-          , auth = btoa(name+'/token:'+ github_api.token);
+        var auth = btoa(get_current_user()+'/token:'+ github_api.token);
         xhr.setRequestHeader('Authorization', 'Basic '+ auth);
       }
     };
@@ -563,6 +562,11 @@ function get_named(what, cb, no_cb, refresh) {
 //function get_master_branch() {
 //  return $('.subnav-bar a.switcher').data('masterBranch');
 //}
+
+// needs to work everywhere we use the API
+function get_current_user() {
+  return $('#user .name').text();
+}
 
 function get_current_branch() {
   return $('.subnav-bar a.switcher').data('ref');
