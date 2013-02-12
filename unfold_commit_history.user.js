@@ -4,9 +4,11 @@
 // @description   Adds "unfold all changesets" buttons (hotkey: f) above/below Commit History pages at github, letting you browse the source changes without leaving the page. (Click a commit header again to re-fold it.) You can also fold or unfold individual commits by clicking on non-link parts of the commit. As a bonus, all named commits get their tag/branch names annotated in little bubbles on the right.
 // @include       https://github.com/*/search*
 // @include       https://github.com/*/commits*
+// @include       https://github.com/*/compare*
+// @match         https://github.com/*/compare*
 // @match         https://github.com/*/commits*
 // @match         https://github.com/*/search*
-// @version       1.9.3
+// @version       2.0.3
 // ==/UserScript==
 
 (function exit_sandbox() { // see end of file for unsandboxing code
@@ -104,30 +106,63 @@ var hot = 'data-key' // used to find links with hotkey assignments
       ]
     }
 
-  // Problem: I can't scan commit history for commits by weekday or time of day
+  // Problem: I can't scan commit history for commits by week number or weekday
   //
-  // Where github has <time title="2011-06-18 15:10:54">33 minutes ago</time>,
-  // iso_times will upgrade to add a prefix like <abbr>Sat 14:58:30</abbr> and
-  // surround the "33 minutes ago" in parentheses. This lets you visually scan
-  // the page for commits by weekday or time of day without getting frustrated.
-  , iso_times:
-    { toggle_selector: '#commit .human .actor .date' // a commit timestamp
+  // Where github has <h3 class="commit-group-heading">Nov 21, 2011</h3>,
+  // wday_names will prefix / suffix those with "W47: " / " - Mon" respectively,
+  // letting you scan the page for commits by either without getting frustrated.
+  , wday_names:
+    { toggle_selector: '.commit-group-heading' // a date header
     , css:
-      [ 'body:not(.iso_times) .date > .iso { display: none; }'
-      , '.iso_times .date > time:before { content: "("; }'
-      , '.iso_times .date > time:after { content: ")"; }'
+      [ '.wday_names .commit-group-heading[data-wno]:before {'
+      , '  content: "W" attr(data-wno) ": "; '
+      , '}'
+      , '.wday_names .commit-group-heading[data-wd]:after {'
+      , '  content: " - " attr(data-wd); '
+      , '}'
       ]
     , on_page_change: function() {
-        function prepend_absolute_wday_times() {
-          var iso  = this.title
-            , time = iso.split(' ')[1]
-            , date = new Date(iso.replace(/-/g, '/'))
-            , week = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-            , day  = week[date.getDay()];
-          $(this).before('<abbr class="iso" title="'+ iso +'">'+
-                         day +' '+ time +' </abbr>');
+        function set_weekday_attr() {
+          var date = new Date($(this).text())
+            , wday = date.getDay()
+            , day  = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][wday]
+            , year = date.getFullYear()
+            , w_53, isow; // ISO 8601 week no: week 1 == first week with a Thu
+          if (isNaN(date)) return; // when github changes: let's fail gracefully
+
+          // compute week number
+          wday = (new Date(year, 0, 4)).getDay() || 7;
+          w_53 = new Date(year, 0, 4 - wday);
+          isow = Math.ceil((date - w_53) / (7 * 864e5));
+          $(this).attr('data-wd', day);
+          $(this).attr('data-wno', isow);
         }
-        $('.date > time:first-child').each(prepend_absolute_wday_times);
+        $(this.toggle_selector +':not([data-wd])').each(set_weekday_attr);
+      }
+    }
+
+  // Problem: I can't scan commit history for commits by time of day
+  //
+  // Where github has <time title="2011-06-18 15:10:54">33 minutes ago</time>,
+  // iso_times will upgrade to add a prefix like <abbr>14:58:30</abbr> and
+  // surround the "33 minutes ago" in parentheses. This lets you visually scan
+  // the page for commits by time of day without getting frustrated.
+  , iso_times:
+    // a commit timestamp or the ISO time of the same, once visible:
+    { toggle_selector: '.commit .authorship time, .commit .authorship abbr.iso'
+    , css:
+      [ 'body:not(.iso_times) .authorship abbr.iso { display: none; }'
+      , '.iso_times .authorship > time:before { content: "("; }'
+      , '.iso_times .authorship > time:after { content: ")"; }'
+      ]
+    , on_page_change: function() {
+        function prepend_absolute_times() {
+          var iso  = this.title
+            , time = iso.split(' ')[1];
+          $(this).before('<abbr class="iso">'+ time +' </abbr>');
+        }
+        // nth-child(2) is to add it once per date, not per page change and date
+        $('.authorship > time:nth-child(2)').each(prepend_absolute_times);
       }
     }
 
@@ -202,6 +237,7 @@ var hot = 'data-key' // used to find links with hotkey assignments
 
 , DEV_MODE = 'undefined' !== typeof console && console.warn &&
              window.localStorage.getItem('github_improved_dev')
+, DEV_PEEK = DEV_MODE && new RegExp(DEV_MODE, 'i')
 , ENTER = !DEV_MODE ? function(){}
   : function ENTER(id) {
       (ENTER[id] = ENTER[id] || []).push(+new Date);
@@ -209,12 +245,13 @@ var hot = 'data-key' // used to find links with hotkey assignments
 , LEAVE = !DEV_MODE ? ENTER
   : function LEAVE(id) {
       var dt = new Date - ENTER[id].pop();
-      if (dt > 100) console.warn(dt +'ms in github improved '+ id);
+      if (dt > 100 || DEV_PEEK.test(id))
+        console.warn(dt +'ms in github improved '+ id);
     }
 ;
 
 var  at = '.commit.loading .machine a['+ hot +'="c"]',
-    url = '/images/modules/browser/loading.gif',
+    url = '/images/spinners/octocat-spinner-32.gif',
   plain = ':not(.magic):not([href*="#"])',
 
   // all changeset links in the message context of their own changeset
@@ -244,13 +281,14 @@ var  at = '.commit.loading .machine a['+ hot +'="c"]',
   '.folded .message .truncated:after { content: " (\u2026)"; }\n' +
 
   // tag and branch labels:
-  '.magic.tag, .magic.branch { opacity: 0.75; }' +
-  '.message .tag { background: #FE7; text-align: right; padding: 0 2px; ' +
-  ' margin: 0 -5px .1em 0; border-radius: 4px; float: right; clear: both; }\n' +
-  '.message .branch { background: #7EF; text-align: right; padding: 0 2px; ' +
-  ' margin: 0 -5px .1em 0; border-radius: 4px; float: right; clear: both; }\n' +
-
-  '.magic.tag.diff { clear: left; margin-right: 0.25em; }\n' // &Delta; marker
+  '.commit-refs { opacity: 0.5; white-space: nowrap; width: 902px; ' +
+  ' display: inline-block; position: relative; margin: 6px 0 -6px -44px; }\n' +
+  '.commit-refs .magic.branch { margin-right: 4px; }' +
+  '.commit-refs .magic.tag, .commit-refs .magic.diff { float: right;' +
+  ' margin-left: 4px; }\n' +
+//'.commit-group-item .magic.tag    { background: #FE7; border-color: #DC5; }' +
+//'.commit-group-item .magic.branch { background: #7EF; border-color: #5CD; }' +
+  '.magic.tag.diff { clear: left; }\n' // &Delta; marker
 ;
 
 var keys = Object.keys || function _keys(o) {
@@ -270,7 +308,7 @@ function onChange() {
       , callback = feature.on_page_change;
     if (callback) {
       ENTER('onChange::'+ name);
-      callback();
+      callback.call(feature);
       LEAVE('onChange::'+ name);
     }
   }
@@ -280,7 +318,22 @@ function onChange() {
 }
 
 function init() {
-  ENTER('init');
+  var path = location.pathname.split('/')
+  //, repo = path.slice(0, 3).join('/')
+    , what = path[3]
+    , func = ({ commits: commits_page
+              , compare: compare_page
+              })[what]
+  //, args = path.slice(4).join('/')
+    ;
+  if (func) {
+    ENTER(what + '_page');
+    func();
+    LEAVE(what + '_page');
+  }
+}
+
+function commits_page() {
   var name, feature;
   $('body').addClass('all_folded') // preload the loading throbber, so it shows
     .append('<img src="'+ url +'" style="visibility:hidden;">'); // up promptly
@@ -294,7 +347,7 @@ function init() {
     if ((feature = features[name]).init)
       feature.init();
 
-  $('.commit').live('click', toggle_commit_folding);
+  $('.commit').on('click', toggle_commit_folding);
 
   // Resuscitate "Diff suppressed. Click to show" links in imported diffs. This
   // one taken from /ie-addon/commits/68ae2cf1446bdfc606f5fb1f26cee18258f20e9a:
@@ -305,7 +358,7 @@ function init() {
   //   </a></div>
   //   <div class="data highlight"><table>[real diff here]</table></data>
   // <div>
-  $('.commit .image > a.js-show-suppressed-diff').live('click', function(e) {
+  $('.commit .image > a.js-show-suppressed-diff').on('click', function(e) {
     $(this).parent().hide().parent().find('.highlight').show();
     e.preventDefault(); // don't scroll to the top of the page!
   });
@@ -313,10 +366,11 @@ function init() {
   onChange();
   on_dom_change('body', onChange);
 
-  $('a[href]['+ hot +'="p"]')
-    .live('mouseover', null, hilight_related)
-    .live('mouseout', null,  unlight_related)
-    .live('click', null,   scroll_to_related); // if triggered by mouse click,
+  $(document).on({
+    'mouseover': hilight_related,
+    'mouseout': unlight_related,
+    'click': scroll_to_related
+  }, 'a[href]['+ hot +'="p"]'); // if triggered by mouse click,
   // scroll to the commit if it's in view, otherwise load that page instead --
   // and ditto but for trigger by keyboard hotkey instead (falls back to link):
   GitHub.Commits.link = AOP_wrap_around(try_scroll_first, GitHub.Commits.link);
@@ -347,14 +401,49 @@ function init() {
         'function() { return $(".commit"); });void 0';
 
   setTimeout(function() { AOP_also_call('$.facebox.reveal', show_docs); }, 1e3);
-  LEAVE('init');
+}
+
+function compare_page() {
+  function warn() { if (DEV_MODE) console.warn('No tags!'); }
+  get_tags(wrap(link_adjacent, 'link_adjacent'), warn, false);
+}
+
+function link_adjacent(tags, repo) {
+  var all_tags = keys(tags)
+
+    , cmp_path = location.pathname
+    , cmp_root = cmp_path.replace(/[^\/]*$/, '')
+    , cmp_what = cmp_path.replace(/^.*\//, '').split('...')
+    , cmp_prev = cmp_what[0]
+    , cmp_next = cmp_what[1]
+    , prev_tag = get_next_tag(all_tags, cmp_prev, -1)
+    , next_tag = get_next_tag(all_tags, cmp_next, 1) ||
+                 ('master' === cmp_next ? '' : 'master')
+
+    , $swap_us = $('.switch.tooltipped')
+    , $dot_dot = $swap_us.siblings('em')
+
+    , $to_prev = $( '<a class="tooltipped" title="Step back one tag" href="'
+                  + cmp_root + prev_tag + '...' + cmp_prev +'">☚</a>')
+    , $to_next = $( '<a class="tooltipped" title="Step forward one tag" href="'
+                  + cmp_root + cmp_next + '...' + next_tag +'">☛</a>')
+    ;
+
+  $swap_us.parent().append($to_next);
+  $swap_us.before($to_prev);
+  $dot_dot.before($swap_us);
+  $swap_us.css({ position: 'absolute', marginLeft: '2px', zIndex: 1 });
+  $dot_dot.css({ position: 'relative', bottom: '-5px' });
+
+  if (!prev_tag) $to_prev.css('visibility', 'hidden');
+  if (!next_tag) $to_next.css('visibility', 'hidden');
 }
 
 // fetch some API resource by api
 function github_api(path, cb) {
   function get() {
     if (1 === enqueue().length) {
-      if (DEV_MODE) console.warn('github_api: ', path);
+      if (DEV_MODE) console.warn('github_api:', path);
       $.ajax(request);
     }
   }
@@ -376,8 +465,7 @@ function github_api(path, cb) {
       }
     , dataType: 'json'
     , beforeSend: logged_in && function(xhr) {
-        var name = $('#header .avatarname .name').text()
-          , auth = btoa(name+'/token:'+ github_api.token);
+        var auth = btoa(get_current_user()+'/token:'+ github_api.token);
         xhr.setRequestHeader('Authorization', 'Basic '+ auth);
       }
     };
@@ -414,6 +502,15 @@ function get_branches(cb, no_branches, refresh) {
   return get_named('branches', cb, no_branches, refresh);
 }
 
+// returns an array of all `what` ('tag' or 'branch') names in this repository
+function get_commitish_names(what) {
+  function name(i, a) { return $(a).text(); }
+  what = what.replace(/e?s$/, ''); // also grok 'tags' and 'branches'
+  return $('.commitish-selector .commitish-item.'+ what +
+           '-commitish a').map(name).get();
+}
+
+// returns true if the resource came straight from its cache.
 function get_named(what, cb, no_cb, refresh) {
   function got_names(names) {
     // cache the repository's tags/branches for later
@@ -429,9 +526,11 @@ function get_named(what, cb, no_cb, refresh) {
   if (repo) repo = repo[0]; else return false;
 
   var path = what + repo
+    // the tag or branch names we have cached, if any, or false, for "nothing"
     , xxxs = window.localStorage[path] && JSON.parse(window.localStorage[path])
-    , _css = '.subnav-bar '+ (what === 'tags' ? 'li + li' : 'li:first-child')
-    , page = $(_css + ' a.dropdown + ul > li').map(get_name).get().sort() || []
+    // all tag or branch names listed in the current page
+    , page = get_commitish_names(what).sort() || []
+    // all tag or branch names we have already (0+)
     , have = xxxs && keys(xxxs).sort() || []
     , at_b = 'branches' === what && get_current_branch();
 
@@ -439,7 +538,7 @@ function get_named(what, cb, no_cb, refresh) {
   // contradicts what we have saved
   if (!xxxs || at_b && xxxs[at_b] !== get_first_commit_hash()) refresh = true;
 
-  // optimization - if there are no tags in the page, don't go fetch any
+  // optimization - if there are none in this repository, don't go fetch any
   if ('tags' === what && !page.length) {
     have = page;
     xxxs = {};
@@ -465,6 +564,11 @@ function get_named(what, cb, no_cb, refresh) {
 //  return $('.subnav-bar a.switcher').data('masterBranch');
 //}
 
+// needs to work everywhere we use the API
+function get_current_user() {
+  return $('#user .name').text();
+}
+
 function get_current_branch() {
   return $('.subnav-bar a.switcher').data('ref');
 }
@@ -473,36 +577,43 @@ function get_first_commit_hash() {
   return $('.site .commit a['+ hot +'="c"]')[0].pathname.slice(-40);
 }
 
+function get_browse_link(hash) {
+  return $('.commit .commit-meta a.browse-button[href$="/tree/'+ hash +'"]');
+}
+
+function get_commit(hash) {
+  return $('#c_'+ hash);
+}
+
 // annotates commits with tag/branch names in little bubbles on the right side
 function inject_commit_names() {
   function draw_names(type, names, repo) {
-    var all_names = keys(names)
-      , kin_cache = {}; // kin_re => [all names matching kin_re]
+    var all_names = keys(names); // kin_re => [all names matching kin_re]
     all_names.sort().forEach(function(name) {
       var hash = names[name]
         , url  = repo +'/commits/'+ name
-        , sel  = 'a.'+ type +'[href="'+ url +'"]'
-        , $a   = $('.commit pre > a[href$="'+ repo +'/commit/'+ hash +'"]');
-      if (!$a.parent().find(sel).length) { // does the commit exist in the page?
-        $(sel).remove(); // remove tag / branch from prior location (if any)
-        $a.before('<a class="magic '+type+'" href="'+ url +'">'+ name +'</a>');
+        , sel  = 'a.magic.'+ type +'[href="'+ url +'"]'
+        , $ci  = get_commit(hash) // new location for this tag / branch
+        , hcls = 'commit-refs'
+        , $has = $ci.find('.'+ hcls)
+        ;
+      if ($ci.parent().find(sel).length) return; // it's already rendered here
+      if (!$has.length)
+        $has = $ci.append('<div class="'+ hcls +'"></div>').find('.'+ hcls);
 
-        // if we just linked a tag, also link a tag changeset, if applicable:
-        if (type !== 'tag') return;
-        var kin_re   = quote_re(name).replace(/\d+/g, '\\d+')
-          , similar  = new RegExp(kin_re)
-          , kin_tags = kin_cache[similar] = kin_cache[similar] ||
-                     ( all_names
-                         .filter(function(tag) { return similar.test(tag); })
-                         .sort(dwim_sort_func)
-                     )
-          , this_idx = kin_tags.indexOf(name)
-          , last_tag = this_idx && kin_tags[this_idx - 1];
+      $(sel).remove(); // remove tag / branch from prior location (if any)
+      $has.append( '<a class="magic gobutton '+type+'" href="'+ url +'">'
+                 + '<tt>'+ name +'</tt></a>'
+                 );
+
+      // if we just linked a tag, also link a tag changeset, if applicable:
+      if (type === 'tag') {
+        var last_tag = get_next_tag(all_names, name, -1);
         if (last_tag)
-          $a.before( '<a class="magic tag diff" title="Changes since '+ last_tag
-                   + '" href="'+ repo +'/compare/'+ last_tag +'...'+ name +'">'
-                   + '&Delta;</a>'
-                   );
+          $has.append( '<a class="gobutton magic diff" title="Changes since '
+                     + last_tag +'" href="'+ repo +'/compare/'+ last_tag +'...'
+                     + name +'"><tt>&Delta;</tt></a>'
+                     );
       }
     });
   }
@@ -512,9 +623,34 @@ function inject_commit_names() {
   function draw_branches(branches, repo) {
     draw_names('branch', branches, repo);
   }
-  var refresh = get_branches(draw_branches);
+  var refresh = get_branches(wrap(draw_branches, 'draw_branches'));
   // assume it's best to refresh tags too if any branches were moved
-  get_tags(draw_tags, null, refresh);
+  get_tags(wrap(draw_tags, 'draw_tags'), null, refresh);
+}
+
+function wrap(fn, name) {
+  return function timed() {
+    ENTER(name);
+    var result = fn.apply(this, arguments);
+    LEAVE(name);
+    return result;
+  };
+}
+
+// tries to deliver the next (offset=1) or previous (offset=-1) tag in tags
+function get_next_tag(tags, tag, offset) {
+   // kin_re => [all tags matching kin_re]
+  var cache    = get_next_tag.kin_cache = get_next_tag.kin_cache || {}
+    , kin_re   = quote_re(tag).replace(/(-|\\\.|\d+)+/g, '(-|\\\\\\.|\\d+)+')
+    , similar  = new RegExp(kin_re)
+    , kin_tags = cache[kin_re] = cache[kin_re] ||
+                 ( tags.filter(function(tag) { return similar.test(tag); })
+                       .sort().sort(dwim_sort_func)
+                 )
+    , this_idx = kin_tags.indexOf(tag)
+    , want_tag = this_idx + (offset || -1)
+    ;
+  return kin_tags[want_tag];
 }
 
 function quote_re( re ) {
@@ -620,10 +756,8 @@ function init_config() {
     if (enabled) $('body').addClass(name);
 
     if (feature.toggle_selector)
-      $(feature.toggle_selector)
-        .live('click', { option: name }, toggle_option)
-        .live('hover', { option: name }, show_docs_for)
-      ;
+      $(feature.toggle_selector).on('click', { option: name }, toggle_option);
+      $(feature.toggle_selector).on('hover', { option: name }, show_docs_for);
   }
 }
 

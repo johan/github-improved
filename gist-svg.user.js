@@ -6,7 +6,7 @@
 // @include       https://github.com/*/blob/*.svg
 // @match         https://gist.github.com/*
 // @match         https://github.com/*/blob/*.svg
-// @version       1.1
+// @version       1.2
 // ==/UserScript==
 
 (function exit_sandbox() { // see end of file for unsandboxing code
@@ -43,10 +43,10 @@ function init() {
     // set width and height to fill the width of the image, subject to what
     // the viewBox declares (ignoring any width/height absolute units crap)
     svg.css({ width: tw });
-    if ((viewbox = (svg.attr('viewBox') || '').replace(/^\s+|\s+$/, ''))) {
-      viewbox = viewbox.split(/[,\s]+/).slice(2,4).map(Number);
-      if ('number' === typeof (w = viewbox[0]) &&
-          'number' === typeof (h = viewbox[1]))
+    if ((viewbox = svg.prop('viewBox'))) {
+      viewbox = viewbox.animVal;
+      if ('number' === typeof (w = viewbox.width) &&
+          'number' === typeof (h = viewbox.height))
         svg.css({ height: tw * h / w });
     }
 
