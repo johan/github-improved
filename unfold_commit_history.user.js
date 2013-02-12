@@ -251,7 +251,7 @@ var hot = 'data-key' // used to find links with hotkey assignments
 ;
 
 var  at = '.commit.loading .machine a['+ hot +'="c"]',
-    url = '/images/modules/browser/loading.gif',
+    url = '/images/spinners/octocat-spinner-32.gif',
   plain = ':not(.magic):not([href*="#"])',
 
   // all changeset links in the message context of their own changeset
@@ -347,7 +347,7 @@ function commits_page() {
     if ((feature = features[name]).init)
       feature.init();
 
-  $('.commit').live('click', toggle_commit_folding);
+  $('.commit').on('click', toggle_commit_folding);
 
   // Resuscitate "Diff suppressed. Click to show" links in imported diffs. This
   // one taken from /ie-addon/commits/68ae2cf1446bdfc606f5fb1f26cee18258f20e9a:
@@ -358,7 +358,7 @@ function commits_page() {
   //   </a></div>
   //   <div class="data highlight"><table>[real diff here]</table></data>
   // <div>
-  $('.commit .image > a.js-show-suppressed-diff').live('click', function(e) {
+  $('.commit .image > a.js-show-suppressed-diff').on('click', function(e) {
     $(this).parent().hide().parent().find('.highlight').show();
     e.preventDefault(); // don't scroll to the top of the page!
   });
@@ -366,10 +366,11 @@ function commits_page() {
   onChange();
   on_dom_change('body', onChange);
 
-  $('a[href]['+ hot +'="p"]')
-    .live('mouseover', null, hilight_related)
-    .live('mouseout', null,  unlight_related)
-    .live('click', null,   scroll_to_related); // if triggered by mouse click,
+  $(document).on({
+    'mouseover': hilight_related,
+    'mouseout': unlight_related,
+    'click': scroll_to_related
+  }, 'a[href]['+ hot +'="p"]'); // if triggered by mouse click,
   // scroll to the commit if it's in view, otherwise load that page instead --
   // and ditto but for trigger by keyboard hotkey instead (falls back to link):
   GitHub.Commits.link = AOP_wrap_around(try_scroll_first, GitHub.Commits.link);
@@ -755,10 +756,8 @@ function init_config() {
     if (enabled) $('body').addClass(name);
 
     if (feature.toggle_selector)
-      $(feature.toggle_selector)
-        .live('click', { option: name }, toggle_option)
-        .live('hover', { option: name }, show_docs_for)
-      ;
+      $(feature.toggle_selector).on('click', { option: name }, toggle_option);
+      $(feature.toggle_selector).on('hover', { option: name }, show_docs_for);
   }
 }
 
