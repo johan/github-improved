@@ -1,9 +1,9 @@
 { "name": "Github improved"
-, "version": "2.0.4"
+, "version": "2.0.5"
 , "icons":
   { "128": "128.png"
   }
-, "description": "Adds in-page changeset unfolding, shows branch and tag names,  and some other niceties for github's Commit History view."
+, "description": "Adds in-page changeset unfolding, and some other niceties for github's Commit History view."
 , "content_scripts":
   [ { "js":      [ "unfold_commit_history.user.js"
                  ]
