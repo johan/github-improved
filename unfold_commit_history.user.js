@@ -2,16 +2,15 @@
 // @name          Github: unfold commit history
 // @namespace     http://github.com/johan/
 // @description   Adds "unfold all changesets" buttons (hotkey: f) above/below Commit History pages at github, letting you browse the source changes without leaving the page. (Click a commit header again to re-fold it.) You can also fold or unfold individual commits by clicking on non-link parts of the commit. As a bonus, all named commits get their tag/branch names annotated in little bubbles on the right.
-// @include       https://github.com/*/search*
-// @include       https://github.com/*/commits*
-// @include       https://github.com/*/compare*
-// @match         https://github.com/*/compare*
-// @match         https://github.com/*/commits*
-// @match         https://github.com/*/search*
-// @version       2.0.3
+// @match         https://*/*/compare*
+// @match         https://*/*/commits*
+// @match         https://*/*/search*
+// @version       2.0.6
 // ==/UserScript==
 
-(function exit_sandbox() { // see end of file for unsandboxing code
+// see end of file for unsandboxing code
+if (location.hostname.slice(0, 7) === 'github.') (function exit_sandbox() {
+// manual host check - @match patterns only handle *.github.com, not github.* :(
 
 // FIXME: enabled_css + disabled_css + github_css?
 var hot = 'data-key' // used to find links with hotkey assignments
