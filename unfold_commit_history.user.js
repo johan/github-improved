@@ -250,6 +250,9 @@ var hot = 'data-key' // used to find links with hotkey assignments
     }
 ;
 
+// temp. deprecation of stuff not working, most likely due to site changes:
+for (var name in features) if (!features[name]) delete features[name];
+
 var  at = '.commit.loading .machine a['+ hot +'="c"]',
     url = '/images/spinners/octocat-spinner-32.gif',
   plain = ':not(.magic):not([href*="#"])',
@@ -339,7 +342,7 @@ function commits_page() {
     .append('<img src="'+ url +'" style="visibility:hidden;">'); // up promptly
 
   for (name in features)
-    if ((feature = features[name]) && feature.css)
+    if ((feature = features[name]).css)
       css += feature.css.join('\n') + '\n';
   $('head').append($('<style type="text/css"></style>').html(css));
 
@@ -751,10 +754,6 @@ function show_docs(x) {
 function init_config() {
   var $body = $('body');
   for (var name in features) {
-    if (!features[name]) {
-      delete features[name];
-      continue;
-    }
     var feature = features[name]
       , enabled = feature.enabled =
                   feature.always_enabled || !!window.localStorage.getItem(name);
