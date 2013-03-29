@@ -333,8 +333,8 @@ function init() {
 }
 
 function commits_page() {
-  var name, feature;
-  $('body').addClass('all_folded') // preload the loading throbber, so it shows
+  var name, feature, $body = $('body');
+  $body.addClass('all_folded') // preload the loading throbber, so it shows
     .append('<img src="'+ url +'" style="visibility:hidden;">'); // up promptly
 
   for (name in features)
@@ -346,7 +346,7 @@ function commits_page() {
     if ((feature = features[name]).init)
       feature.init();
 
-  $('.commit').on('click', toggle_commit_folding);
+  $body.on('click', '.commit', toggle_commit_folding);
 
   // Resuscitate "Diff suppressed. Click to show" links in imported diffs. This
   // one taken from /ie-addon/commits/68ae2cf1446bdfc606f5fb1f26cee18258f20e9a:
@@ -357,7 +357,7 @@ function commits_page() {
   //   </a></div>
   //   <div class="data highlight"><table>[real diff here]</table></data>
   // <div>
-  $('.commit .image > a.js-show-suppressed-diff').on('click', function(e) {
+  $body.on('click', '.commit .image > a.js-show-suppressed-diff', function(e) {
     $(this).parent().hide().parent().find('.highlight').show();
     e.preventDefault(); // don't scroll to the top of the page!
   });
@@ -365,10 +365,10 @@ function commits_page() {
   onChange();
   on_dom_change('body', onChange);
 
-  $(document).on({
-    'mouseover': hilight_related,
-    'mouseout': unlight_related,
-    'click': scroll_to_related
+  $body.on(
+  { 'mouseover': hilight_related
+  , 'mouseout': unlight_related
+  , 'click': scroll_to_related
   }, 'a[href]['+ hot +'="p"]'); // if triggered by mouse click,
   // scroll to the commit if it's in view, otherwise load that page instead --
   // and ditto but for trigger by keyboard hotkey instead (falls back to link):
@@ -748,6 +748,7 @@ function show_docs(x) {
 
 
 function init_config() {
+  var $body = $('body');
   for (var name in features) {
     var feature = features[name]
       , enabled = feature.enabled =
@@ -755,8 +756,13 @@ function init_config() {
     if (enabled) $('body').addClass(name);
 
     if (feature.toggle_selector)
-      $(feature.toggle_selector).on('click', { option: name }, toggle_option);
-      $(feature.toggle_selector).on('hover', { option: name }, show_docs_for);
+      $body.on
+        ( { click: toggle_option
+          , hover: show_docs_for
+          }
+        , feature.toggle_selector
+        , { option: name }
+        );
   }
 }
 
