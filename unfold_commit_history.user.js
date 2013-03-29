@@ -372,7 +372,7 @@ function commits_page() {
   }, 'a[href]['+ hot +'="p"]'); // if triggered by mouse click,
   // scroll to the commit if it's in view, otherwise load that page instead --
   // and ditto but for trigger by keyboard hotkey instead (falls back to link):
-  GitHub.Commits.link = AOP_wrap_around(try_scroll_first, GitHub.Commits.link);
+//GitHub.Commits.link = AOP_wrap_around(try_scroll_first, GitHub.Commits.link);
 
   init_config();
 
