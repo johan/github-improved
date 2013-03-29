@@ -339,7 +339,7 @@ function commits_page() {
     .append('<img src="'+ url +'" style="visibility:hidden;">'); // up promptly
 
   for (name in features)
-    if ((feature = features[name]).css)
+    if ((feature = features[name]) && feature.css)
       css += feature.css.join('\n') + '\n';
   $('head').append($('<style type="text/css"></style>').html(css));
 
