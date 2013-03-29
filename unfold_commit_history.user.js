@@ -142,7 +142,7 @@ var hot = 'data-key' // used to find links with hotkey assignments
 
   // Problem: I can't scan commit history for commits by time of day
   //
-  // Where github has <time title="2011-06-18 15:10:54">33 minutes ago</time>,
+  // Where github has <time datetime="<ISO time here>">33 minutes ago</time>,
   // iso_times will upgrade to add a prefix like <abbr>14:58:30</abbr> and
   // surround the "33 minutes ago" in parentheses. This lets you visually scan
   // the page for commits by time of day without getting frustrated.
@@ -155,13 +155,14 @@ var hot = 'data-key' // used to find links with hotkey assignments
       , '.iso_times .authorship > time:after { content: ")"; }'
       ]
     , on_page_change: function() {
+        function nn(n) { return (n < 10 ? '0' : '') + n; }
         function prepend_absolute_times() {
-          var iso  = this.title
-            , time = iso.split(' ')[1];
-          $(this).before('<abbr class="iso">'+ time +' </abbr>');
+          var date = new Date(this.getAttribute('datetime'))
+            , time = [date.getHours(), date.getMinutes(), date.getSeconds()]
+                     .map(nn).join(':');
+          $(this).before('<abbr class="iso">'+ time +' </abbr>').attr('abs', 1);
         }
-        // nth-child(2) is to add it once per date, not per page change and date
-        $('.authorship > time:nth-child(2)').each(prepend_absolute_times);
+        $('.authorship > time:not([abs])').each(prepend_absolute_times);
       }
     }
 
