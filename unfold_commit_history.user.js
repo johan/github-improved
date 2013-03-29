@@ -175,9 +175,9 @@ var hot = 'data-key' // used to find links with hotkey assignments
   // how many commits they contributed. Click any author to toggle visibility of
   // all their commits on and off. When hidden, that author is grayed out. Click
   // a commit author icon again to hide the panel, and show commits by everyone.
-  , author_filter:
+  , author_filter: null && // FIXME: no longer matches site structure!
     // The author icon of a commit in the page
-    { toggle_selector: '.commit .human .actor:nth-child(2) .gravatar > img'
+    { toggle_selector: '.commit img.gravatar'
     , toggle_callback: function(on) {
         $('#filtered_authors').attr('disabled', !on);
       }
@@ -751,6 +751,10 @@ function show_docs(x) {
 function init_config() {
   var $body = $('body');
   for (var name in features) {
+    if (!features[name]) {
+      delete features[name];
+      continue;
+    }
     var feature = features[name]
       , enabled = feature.enabled =
                   feature.always_enabled || !!window.localStorage.getItem(name);
